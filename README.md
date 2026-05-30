@@ -6,6 +6,12 @@
 **Región Principal:** `us-east-1` (Virginia)  
 **Región Secundaria:** `us-west-2` (Oregón)  
 
+## Diagrama de Arquitectura
+
+![Diagrama de arquitectura multi-región activo-pasivo: Route 53 con enrutamiento de failover, API Gateway + WAF, VPC Link → NLB puente → ALB interno, backends v1/v2 sobre ECS Fargate y Aurora Global Database replicando de Virginia (us-east-1) a Oregón (us-west-2).](./aws-multi-region-architecture.png)
+
+> El diagrama resume visualmente la arquitectura descrita en este documento: el enrutamiento global con Route 53 (sección 1), la cadena de ingreso `API Gateway → VPC Link → NLB → ALB` (secciones 3 y 10.2), el split de rutas `/api/v1/*` y `/api/v2/*` sobre ECS (secciones 3 y 6) y la replicación de Aurora entre la región principal y la secundaria (sección 5). Las secciones siguientes detallan cada componente.
+
 ---
 
 ## 1. Configuración y Estrategia Multi-Región
