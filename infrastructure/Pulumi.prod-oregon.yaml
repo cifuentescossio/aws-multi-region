@@ -1,0 +1,13 @@
+config:
+  aws:region: us-west-2
+  aws:defaultTags:
+    tags:
+      Project: aws-multi-region
+      Environment: prod
+      ManagedBy: pulumi
+      Region: oregon
+  aws-multi-region:stack_kind: regional
+  aws-multi-region:region_key: oregon
+  aws-multi-region:enable_flow_logs: "false"
+  # API Gateway settings inherit from shared.config.yaml. To override per region,
+  # add e.g. aws-multi-region:api_gateway_throttle_rate_limit: "100".

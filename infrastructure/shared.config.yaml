@@ -1,0 +1,86 @@
+# Shared configuration consumed by every stack (regional + global).
+
+project: aws-multi-region
+environment: prod
+domain: cifuentescossio.com
+record_name: api.cifuentescossio.com
+
+# Port the internal ALB listens on for ingress from the API Gateway (NLB bridge).
+app_port: 8080
+health_check_path: /health
+
+# Path-based routing on the internal ALB. Each backend gets its own target group
+# and listener rule on the ALB backend listener. Target groups stay empty (503)
+# until ECS task definitions are attached in a future iteration.
+#   v1 -> /api/v1/*  (legacy Java / Spring Boot)
+#   v2 -> /api/v2/*  (modern TypeScript / Node)
+backends:
+  v1:
+    path_pattern: /api/v1/*
+    port: 8080
+    # image: <account>.dkr.ecr.us-east-1.amazonaws.com/backend-v1:latest
+  v2:
+    path_pattern: /api/v2/*
+    port: 3000
+    # image: <account>.dkr.ecr.us-east-1.amazonaws.com/backend-v2:latest
+
+# ECS service + App Auto Scaling scaffolding for the active-passive compute layer.
+# Disabled by default: with no container image (backends not built yet) there is
+# nothing to run, so only the cluster/roles are created. Set service_enabled: true
+# and add an `image` to each backend above to deploy the running services.
+#
+# Pilot light: the PRIMARY region (Virginia) runs warm at min_capacity; the
+# SECONDARY region (Oregon) sits at passive_min_capacity and scales out on
+# failover when Route 53 sends it traffic and CPU rises past the target.
+ecs:
+  service_enabled: false
+  cpu: 512
+  memory: 1024
+  cpu_target_utilization: 60
+  min_capacity: 2
+  passive_min_capacity: 1
+  max_capacity: 10
+
+# API Gateway defaults (single source of truth). A per-stack Pulumi config key
+# `aws-multi-region:api_gateway_<field>` overrides any value here when present,
+# so the stack files only need to carry what actually differs from these.
+api_gateway:
+  enabled: true
+  stage_name: v1
+  throttle_burst_limit: 20
+  throttle_rate_limit: 50
+  quota_limit: 250000
+  quota_period: MONTH
+  waf_rate_limit: 2000
+  waf_managed_common_enabled: true
+
+# Observability: an OpenTelemetry (ADOT) Collector runs as a sidecar in every
+# backend task and forwards traces, metrics and logs to Grafana Cloud over OTLP.
+# The apps export to the sidecar at http://localhost:4318 (shared awsvpc netns).
+#
+# Only the OTLP endpoint lives here (it is not a secret). The auth header
+# (base64 of "<instanceID>:<token>") is kept in AWS Secrets Manager, seeded as a
+# Pulumi secret per stack and injected into the collector at runtime:
+#   pulumi config set --secret aws-multi-region:grafana_otlp_auth <base64>
+# Leave it unset to have Pulumi create an empty Secret you populate by hand.
+observability:
+  enabled: true
+  collector_image: public.ecr.aws/aws-observability/aws-otel-collector:v0.41.1
+  otlp_endpoint: https://otlp-gateway-prod-us-east-3.grafana.net/otlp
+  collector_cpu: 128
+  collector_memory_reservation: 256
+
+# Friendly names used to drive Route53 failover record set identifiers.
+regions:
+  virginia:
+    aws_region: us-east-1
+    cidr: 10.0.0.0/16
+  oregon:
+    aws_region: us-west-2
+    cidr: 10.1.0.0/16
+
+# Default tags applied via the AWS provider on every regional stack.
+tags:
+  Project: aws-multi-region
+  Environment: prod
+  ManagedBy: pulumi

@@ -1,0 +1,21 @@
+{
+  "name": "aws-multi-region",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-region active-passive (pilot light DR) infrastructure for the aws-multi-region workspace (TypeScript)",
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pulumi/aws": "^6.50.0",
+    "@pulumi/awsx": "^2.16.0",
+    "@pulumi/pulumi": "^3.130.0",
+    "@pulumi/random": "^4.21.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,14 @@
+config:
+  aws:region: us-east-1
+  aws:defaultTags:
+    tags:
+      Project: aws-multi-region
+      Environment: prod
+      ManagedBy: pulumi
+      Region: virginia
+  aws-multi-region:stack_kind: regional
+  aws-multi-region:region_key: virginia
+  aws-multi-region:enable_flow_logs: "false"
+  # API Gateway settings inherit from shared.config.yaml. To override per region,
+  # add e.g. aws-multi-region:api_gateway_throttle_rate_limit: "100".
+encryptionsalt: v1:mGDYYaPbcrI=:v1:xgXy1NYKOIGLU6w8:FK2MkOUm5Y3BM3MATR1A/sgyqUelrQ==

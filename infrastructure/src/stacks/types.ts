@@ -1,0 +1,54 @@
+import * as pulumi from "@pulumi/pulumi";
+
+/**
+ * Union of every stack output. Each builder (regional/global) fills only the
+ * fields relevant to its kind; `index.ts` re-exports them as flat top-level
+ * stack outputs (kept flat because the global stack consumes the regional ones
+ * by name via `StackReference.getOutput`).
+ */
+export interface ProgramOutputs {
+  vpc_id?: pulumi.Output<string>;
+  vpc_cidr?: pulumi.Output<string>;
+  public_subnet_ids?: pulumi.Output<string>[];
+  private_subnet_ids?: pulumi.Output<string>[];
+  alb_sg_id?: pulumi.Output<string>;
+  ecs_tasks_sg_id?: pulumi.Output<string>;
+  database_sg_id?: pulumi.Output<string>;
+  alb_arn?: pulumi.Output<string>;
+  alb_dns_name?: pulumi.Output<string>;
+  alb_zone_id?: pulumi.Output<string>;
+  https_listener_arn?: pulumi.Output<string>;
+  target_group_arns?: pulumi.Output<Record<string, string>>;
+  certificate_arn?: pulumi.Output<string>;
+  api_gateway_id?: pulumi.Output<string>;
+  api_gateway_stage?: pulumi.Output<string>;
+  api_gateway_url?: pulumi.Output<string>;
+  api_gateway_domain_name?: pulumi.Output<string>;
+  api_gateway_zone_id?: pulumi.Output<string>;
+  api_gateway_health_fqdn?: pulumi.Output<string>;
+  api_gateway_health_path?: pulumi.Output<string>;
+  api_gateway_api_key_id?: pulumi.Output<string>;
+  api_gateway_usage_plan_id?: pulumi.Output<string>;
+  api_gateway_waf_arn?: pulumi.Output<string>;
+  api_gateway_vpclink_id?: pulumi.Output<string>;
+  backend_nlb_arn?: pulumi.Output<string>;
+  ecs_cluster_arn?: pulumi.Output<string>;
+  ecs_cluster_name?: pulumi.Output<string>;
+  ecs_task_execution_role_arn?: pulumi.Output<string>;
+  ecs_task_role_arn?: pulumi.Output<string>;
+  ecs_log_group_name?: pulumi.Output<string>;
+  grafana_secret_arn?: pulumi.Output<string | undefined>;
+  db_subnet_group_name?: pulumi.Output<string>;
+  db_global_cluster_identifier?: pulumi.Output<string>;
+  db_global_cluster_arn?: pulumi.Output<string>;
+  db_cluster_arn?: pulumi.Output<string>;
+  db_cluster_endpoint?: pulumi.Output<string>;
+  db_cluster_reader_endpoint?: pulumi.Output<string>;
+  db_writer_instance_endpoint?: pulumi.Output<string>;
+  db_master_secret_arn?: pulumi.Output<string | undefined>;
+  aws_region?: pulumi.Output<string>;
+  region_key?: pulumi.Output<string>;
+  hosted_zone_id?: pulumi.Output<string>;
+  record_name?: pulumi.Output<string>;
+  record_fqdns?: pulumi.Output<string>[];
+}

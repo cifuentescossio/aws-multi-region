@@ -1,0 +1,52 @@
+import { load } from "./config";
+import { buildRegional } from "./stacks/regional";
+import { buildGlobal } from "./stacks/global";
+
+const cfg = load();
+const outputs = cfg.kind === "regional" ? buildRegional(cfg) : buildGlobal(cfg);
+
+// Flat top-level stack outputs. Kept flat (not nested under one object) because
+// the global stack reads the regional ones by name via StackReference.getOutput.
+export const vpc_id = outputs.vpc_id;
+export const vpc_cidr = outputs.vpc_cidr;
+export const public_subnet_ids = outputs.public_subnet_ids;
+export const private_subnet_ids = outputs.private_subnet_ids;
+export const alb_sg_id = outputs.alb_sg_id;
+export const ecs_tasks_sg_id = outputs.ecs_tasks_sg_id;
+export const alb_arn = outputs.alb_arn;
+export const alb_dns_name = outputs.alb_dns_name;
+export const alb_zone_id = outputs.alb_zone_id;
+export const https_listener_arn = outputs.https_listener_arn;
+export const target_group_arns = outputs.target_group_arns;
+export const certificate_arn = outputs.certificate_arn;
+export const api_gateway_id = outputs.api_gateway_id;
+export const api_gateway_stage = outputs.api_gateway_stage;
+export const api_gateway_url = outputs.api_gateway_url;
+export const api_gateway_domain_name = outputs.api_gateway_domain_name;
+export const api_gateway_zone_id = outputs.api_gateway_zone_id;
+export const api_gateway_health_fqdn = outputs.api_gateway_health_fqdn;
+export const api_gateway_health_path = outputs.api_gateway_health_path;
+export const api_gateway_api_key_id = outputs.api_gateway_api_key_id;
+export const api_gateway_usage_plan_id = outputs.api_gateway_usage_plan_id;
+export const api_gateway_waf_arn = outputs.api_gateway_waf_arn;
+export const api_gateway_vpclink_id = outputs.api_gateway_vpclink_id;
+export const backend_nlb_arn = outputs.backend_nlb_arn;
+export const ecs_cluster_arn = outputs.ecs_cluster_arn;
+export const ecs_cluster_name = outputs.ecs_cluster_name;
+export const ecs_task_execution_role_arn = outputs.ecs_task_execution_role_arn;
+export const ecs_task_role_arn = outputs.ecs_task_role_arn;
+export const ecs_log_group_name = outputs.ecs_log_group_name;
+export const grafana_secret_arn = outputs.grafana_secret_arn;
+export const db_subnet_group_name = outputs.db_subnet_group_name;
+export const db_global_cluster_identifier = outputs.db_global_cluster_identifier;
+export const db_global_cluster_arn = outputs.db_global_cluster_arn;
+export const db_cluster_arn = outputs.db_cluster_arn;
+export const db_cluster_endpoint = outputs.db_cluster_endpoint;
+export const db_cluster_reader_endpoint = outputs.db_cluster_reader_endpoint;
+export const db_writer_instance_endpoint = outputs.db_writer_instance_endpoint;
+export const db_master_secret_arn = outputs.db_master_secret_arn;
+export const aws_region = outputs.aws_region;
+export const region_key = outputs.region_key;
+export const hosted_zone_id = outputs.hosted_zone_id;
+export const record_name = outputs.record_name;
+export const record_fqdns = outputs.record_fqdns;

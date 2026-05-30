@@ -1,0 +1,6 @@
+name: aws-multi-region
+runtime: nodejs
+description: Multi-region active-passive infrastructure.
+backend:
+  url: s3://cifuentescossio-pulumi-state
+main: bin/index.js

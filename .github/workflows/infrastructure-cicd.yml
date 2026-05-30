@@ -1,0 +1,111 @@
+name: infrastructure-cicd
+
+on:
+  pull_request:
+    paths:
+      - infrastructure/**
+      - .github/workflows/infrastructure-cicd.yml
+  push:
+    branches:
+      - main
+    paths:
+      - infrastructure/**
+      - .github/workflows/infrastructure-cicd.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PULUMI_BACKEND_URL: ${{ vars.PULUMI_BACKEND_URL || 's3://cifuentescossio-pulumi-state' }}
+  PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+  PULUMI_SKIP_UPDATE_CHECK: true
+
+jobs:
+  infra-pr:
+    name: Pulumi preview on PR
+    # Cancel superseded PR runs: previews are read-only and safe to interrupt.
+    concurrency:
+      group: infrastructure-pr-${{ github.ref }}
+      cancel-in-progress: true
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-east-1
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: infrastructure/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run check
+      - name: Build
+        run: npm run build
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v6
+        with:
+          command: version
+      - name: Pulumi login
+        run: pulumi login "${PULUMI_BACKEND_URL}"
+      - name: Preview prod-virginia
+        run: pulumi preview --stack prod-virginia --non-interactive
+      - name: Preview prod-oregon
+        run: pulumi preview --stack prod-oregon --non-interactive
+      - name: Preview prod-global
+        run: pulumi preview --stack prod-global --non-interactive
+
+  infra-deploy:
+    name: Pulumi apply on main
+    # Queue deploys (never cancel): aborting an in-flight `pulumi up` can leave
+    # infrastructure half-applied.
+    concurrency:
+      group: infrastructure-deploy
+      cancel-in-progress: false
+    # push only fires on main (see on.push.branches), so the event check is enough.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-east-1
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: infrastructure/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v6
+        with:
+          command: version
+      - name: Pulumi login
+        run: pulumi login "${PULUMI_BACKEND_URL}"
+      - name: Apply prod-virginia
+        run: pulumi up --stack prod-virginia --yes --non-interactive
+      - name: Apply prod-oregon
+        run: pulumi up --stack prod-oregon --yes --non-interactive
+      - name: Apply prod-global
+        run: pulumi up --stack prod-global --yes --non-interactive

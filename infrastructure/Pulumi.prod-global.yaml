@@ -1,0 +1,12 @@
+config:
+  aws:region: us-east-1
+  aws:defaultTags:
+    tags:
+      Project: aws-multi-region
+      Environment: prod
+      ManagedBy: pulumi
+      Scope: global
+  aws-multi-region:stack_kind: global
+  # Update <org-or-user> to match your Pulumi backend namespace.
+  aws-multi-region:virginia_stack: organization/aws-multi-region/prod-virginia
+  aws-multi-region:oregon_stack: organization/aws-multi-region/prod-oregon

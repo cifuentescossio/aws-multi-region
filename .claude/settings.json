@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "PowerShell(\"deleted: api-cicd.yml\")",
+      "Bash(node -e \"const d=require\\('./package.json'\\).dependencies; console.log\\(JSON.stringify\\(d,null,2\\)\\)\")",
+      "Bash(grep -nE '^#{1,3} ' README.md)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\bella\\.claude\\projects\\c--Users-bella-OneDrive-Desktop-research\\memory"
+    ]
+  }
+}

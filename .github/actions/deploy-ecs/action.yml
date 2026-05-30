@@ -1,0 +1,155 @@
+name: Deploy backend to ECS
+description: >
+  Build & push a backend image to ECR (with layer caching) and roll out the ECS
+  service in one region by re-registering its task definition with the new image
+  and database wiring. AWS credentials must be configured by the caller beforehand.
+
+inputs:
+  aws-region:
+    description: Target AWS region (e.g. us-east-1).
+    required: true
+  ecr-repository:
+    description: ECR repository name for the image.
+    required: true
+  container-name:
+    description: Container name inside the task definition to update.
+    required: true
+  cluster-name:
+    description: ECS cluster name.
+    required: true
+  service-name:
+    description: ECS service name.
+    required: true
+  dockerfile:
+    description: Path to the Dockerfile (relative to the workspace root).
+    required: true
+  build-context:
+    description: Docker build context (relative to the workspace root).
+    required: true
+  image-tag:
+    description: Immutable image tag (typically the commit SHA).
+    required: true
+  db-host:
+    description: Database cluster endpoint for the target region.
+    required: true
+  db-secret-arn:
+    description: Secrets Manager ARN holding the DB master credentials.
+    required: true
+  db-name:
+    description: Database name.
+    required: true
+  db-user:
+    description: Database user.
+    required: true
+  db-port:
+    description: Database port.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Login to Amazon ECR
+      id: ecr
+      uses: aws-actions/amazon-ecr-login@v2
+    - name: Ensure ECR repository exists
+      shell: bash
+      run: |
+        aws ecr describe-repositories --repository-names "${{ inputs.ecr-repository }}" --region "${{ inputs.aws-region }}" >/dev/null 2>&1 || \
+        aws ecr create-repository --repository-name "${{ inputs.ecr-repository }}" --image-scanning-configuration scanOnPush=true --region "${{ inputs.aws-region }}"
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Build and push image
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.build-context }}
+        file: ${{ inputs.dockerfile }}
+        push: true
+        tags: |
+          ${{ steps.ecr.outputs.registry }}/${{ inputs.ecr-repository }}:${{ inputs.image-tag }}
+          ${{ steps.ecr.outputs.registry }}/${{ inputs.ecr-repository }}:latest
+        cache-from: type=gha,scope=${{ inputs.ecr-repository }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.ecr-repository }}
+    - name: Update ECS service task definition image
+      shell: bash
+      env:
+        IMAGE_URI: ${{ steps.ecr.outputs.registry }}/${{ inputs.ecr-repository }}:${{ inputs.image-tag }}
+        CONTAINER_NAME: ${{ inputs.container-name }}
+        CLUSTER_NAME: ${{ inputs.cluster-name }}
+        SERVICE_NAME: ${{ inputs.service-name }}
+        DB_HOST: ${{ inputs.db-host }}
+        DB_SECRET_ARN: ${{ inputs.db-secret-arn }}
+        DB_NAME: ${{ inputs.db-name }}
+        DB_USER: ${{ inputs.db-user }}
+        DB_PORT: ${{ inputs.db-port }}
+      run: |
+        aws ecs describe-services --cluster "${CLUSTER_NAME}" --services "${SERVICE_NAME}" --region "${{ inputs.aws-region }}" > service.json
+        TASK_DEF_ARN="$(jq -r '.services[0].taskDefinition' service.json)"
+
+        if [ -z "${TASK_DEF_ARN}" ] || [ "${TASK_DEF_ARN}" = "null" ]; then
+          echo "Could not resolve task definition ARN for service ${SERVICE_NAME}."
+          exit 1
+        fi
+
+        aws ecs describe-task-definition --task-definition "${TASK_DEF_ARN}" --region "${{ inputs.aws-region }}" > taskdef.json
+
+        jq --arg IMAGE "${IMAGE_URI}" --arg CONTAINER "${CONTAINER_NAME}" '
+          .taskDefinition
+          | .containerDefinitions = (
+              if ([.containerDefinitions[].name] | index($CONTAINER)) != null then
+                (.containerDefinitions | map(
+                  if .name == $CONTAINER then
+                    .image = $IMAGE
+                    | .environment = ((.environment // [])
+                        | map(select(.name != "DB_HOST" and .name != "DB_NAME" and .name != "DB_USER" and .name != "DB_PORT" and .name != "DB_ENGINE"))
+                        + [
+                            {name: "DB_HOST", value: env.DB_HOST},
+                            {name: "DB_NAME", value: env.DB_NAME},
+                            {name: "DB_USER", value: env.DB_USER},
+                            {name: "DB_PORT", value: env.DB_PORT},
+                            {name: "DB_ENGINE", value: "aurora-postgresql"}
+                          ])
+                    | .secrets = ((.secrets // [])
+                        | map(select(.name != "DB_MASTER_SECRET_ARN"))
+                        + [{name: "DB_MASTER_SECRET_ARN", valueFrom: env.DB_SECRET_ARN}])
+                  else . end
+                ))
+              else
+                (.containerDefinitions | (.[0].image = $IMAGE
+                  | .[0].environment = ((.[0].environment // [])
+                      | map(select(.name != "DB_HOST" and .name != "DB_NAME" and .name != "DB_USER" and .name != "DB_PORT" and .name != "DB_ENGINE"))
+                      + [
+                          {name: "DB_HOST", value: env.DB_HOST},
+                          {name: "DB_NAME", value: env.DB_NAME},
+                          {name: "DB_USER", value: env.DB_USER},
+                          {name: "DB_PORT", value: env.DB_PORT},
+                          {name: "DB_ENGINE", value: "aurora-postgresql"}
+                        ])
+                  | .[0].secrets = ((.[0].secrets // [])
+                      | map(select(.name != "DB_MASTER_SECRET_ARN"))
+                      + [{name: "DB_MASTER_SECRET_ARN", valueFrom: env.DB_SECRET_ARN}]))
+              end
+            )
+          | {
+              family,
+              taskRoleArn,
+              executionRoleArn,
+              networkMode,
+              containerDefinitions,
+              volumes,
+              placementConstraints,
+              requiresCompatibilities,
+              cpu,
+              memory,
+              runtimePlatform,
+              ephemeralStorage,
+              proxyConfiguration,
+              inferenceAccelerators,
+              pidMode,
+              ipcMode
+            }
+          | with_entries(select(.value != null))
+        ' taskdef.json > new-taskdef.json
+
+        NEW_TASK_DEF_ARN="$(aws ecs register-task-definition --region "${{ inputs.aws-region }}" --cli-input-json file://new-taskdef.json | jq -r '.taskDefinition.taskDefinitionArn')"
+
+        aws ecs update-service --cluster "${CLUSTER_NAME}" --service "${SERVICE_NAME}" --task-definition "${NEW_TASK_DEF_ARN}" --force-new-deployment --region "${{ inputs.aws-region }}"

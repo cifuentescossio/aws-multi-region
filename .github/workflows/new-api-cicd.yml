@@ -1,0 +1,116 @@
+name: new-api-cicd
+
+on:
+  pull_request:
+    paths:
+      - new-api/**
+      - .github/workflows/new-api-cicd.yml
+      - .github/actions/deploy-ecs/action.yml
+  push:
+    branches:
+      - main
+    paths:
+      - new-api/**
+      - .github/workflows/new-api-cicd.yml
+      - .github/actions/deploy-ecs/action.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  ECR_REPOSITORY: ${{ vars.NEW_API_ECR_REPOSITORY || 'new-api' }}
+  CONTAINER_NAME: ${{ vars.NEW_API_CONTAINER_NAME || 'new-api' }}
+  DB_NAME: ${{ vars.DB_NAME || 'aws-multi-region_app' }}
+  DB_USER: ${{ vars.DB_USER || 'dbadmin' }}
+  DB_PORT: ${{ vars.DB_PORT || '5432' }}
+
+jobs:
+  checks:
+    name: new-api checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: new-api-checks-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: new-api/package-lock.json
+      - name: Install
+        working-directory: new-api
+        run: npm ci
+      - name: Build
+        working-directory: new-api
+        run: npm run build
+      - name: Test
+        working-directory: new-api
+        run: npm test
+      - name: Lint (if configured)
+        working-directory: new-api
+        run: npm run lint --if-present
+
+  deploy:
+    name: Deploy new-api to ECS
+    # push only fires on main (see on.push.branches), so the event check is enough.
+    if: github.event_name == 'push'
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: new-api-deploy-${{ matrix.region_key }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - region_key: virginia
+            aws_region: us-east-1
+            cluster: ${{ vars.ECS_CLUSTER_VIRGINIA }}
+            service: ${{ vars.NEW_API_SERVICE_VIRGINIA }}
+            db_host: ${{ vars.DB_CLUSTER_ENDPOINT_VIRGINIA }}
+            db_secret_arn: ${{ vars.DB_MASTER_SECRET_ARN_VIRGINIA }}
+          - region_key: oregon
+            aws_region: us-west-2
+            cluster: ${{ vars.ECS_CLUSTER_OREGON }}
+            service: ${{ vars.NEW_API_SERVICE_OREGON }}
+            db_host: ${{ vars.DB_CLUSTER_ENDPOINT_OREGON }}
+            db_secret_arn: ${{ vars.DB_MASTER_SECRET_ARN_OREGON }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deploy target
+        env:
+          CLUSTER: ${{ matrix.cluster }}
+          SERVICE: ${{ matrix.service }}
+          DB_HOST: ${{ matrix.db_host }}
+          DB_SECRET_ARN: ${{ matrix.db_secret_arn }}
+        run: |
+          : "${CLUSTER:?Missing ECS_CLUSTER_* var for ${{ matrix.region_key }}}"
+          : "${SERVICE:?Missing NEW_API_SERVICE_* var for ${{ matrix.region_key }}}"
+          : "${DB_HOST:?Missing DB_CLUSTER_ENDPOINT_* var for ${{ matrix.region_key }}}"
+          : "${DB_SECRET_ARN:?Missing DB_MASTER_SECRET_ARN_* var for ${{ matrix.region_key }}}"
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ matrix.aws_region }}
+      - name: Build, push and deploy
+        uses: ./.github/actions/deploy-ecs
+        with:
+          aws-region: ${{ matrix.aws_region }}
+          ecr-repository: ${{ env.ECR_REPOSITORY }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          cluster-name: ${{ matrix.cluster }}
+          service-name: ${{ matrix.service }}
+          dockerfile: new-api/Dockerfile
+          build-context: new-api
+          image-tag: ${{ github.sha }}
+          db-host: ${{ matrix.db_host }}
+          db-secret-arn: ${{ matrix.db_secret_arn }}
+          db-name: ${{ env.DB_NAME }}
+          db-user: ${{ env.DB_USER }}
+          db-port: ${{ env.DB_PORT }}
