@@ -98,6 +98,6 @@ jobs:
       - name: Apply prod-virginia
         run: pulumi up --stack prod-virginia --yes --non-interactive
       - name: Apply prod-oregon
-        run: pulumi up --stack prod-oregon --yes --non-interactive
+        run: pulumi refresh --stack prod-oregon --yes --non-interactive
       - name: Apply prod-global
         run: pulumi up --stack prod-global --yes --non-interactive
