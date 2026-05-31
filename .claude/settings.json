@@ -17,7 +17,8 @@
       "Bash(git update-index *)",
       "Bash(chmod +x scripts/setup-oidc.sh)",
       "Bash(grep -iE '\\\\.d\\\\.ts$')",
-      "Bash(grep -rn 'dbMasterSecretArn\\\\|${project}-${b.key}\\\\|backend.key}`\\\\|RandomPassword\\\\|masterPassword' src/)"
+      "Bash(grep -rn 'dbMasterSecretArn\\\\|${project}-${b.key}\\\\|backend.key}`\\\\|RandomPassword\\\\|masterPassword' src/)",
+      "PowerShell(npm run check --prefix infrastructure)"
     ],
     "additionalDirectories": [
       "c:\\Users\\bella\\.claude\\projects\\c--Users-bella-OneDrive-Desktop-research\\memory"
