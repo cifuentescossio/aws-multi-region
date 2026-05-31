@@ -10,7 +10,14 @@
       "Bash(ls node_modules/.bin/tsc*)",
       "Bash(ls node_modules/typescript/bin/tsc)",
       "Bash(ls node_modules)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\bella\\\\Desktop\\\\aws-multi-region\" -Recurse -Depth 2)",
+      "Bash(Select-Object FullName)",
+      "Bash(bash -n scripts/setup-oidc.sh)",
+      "Bash(git update-index *)",
+      "Bash(chmod +x scripts/setup-oidc.sh)",
+      "Bash(grep -iE '\\\\.d\\\\.ts$')",
+      "Bash(grep -rn 'dbMasterSecretArn\\\\|${project}-${b.key}\\\\|backend.key}`\\\\|RandomPassword\\\\|masterPassword' src/)"
     ],
     "additionalDirectories": [
       "c:\\Users\\bella\\.claude\\projects\\c--Users-bella-OneDrive-Desktop-research\\memory"

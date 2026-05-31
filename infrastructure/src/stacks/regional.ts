@@ -87,7 +87,7 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
   const ecr = new EcrComponent(`${namePrefix}-ecr`, {
     backends: cfg.shared.backends.map((b) => ({
       key: b.key,
-      name: `${project}-${b.key}`,
+      name: b.app_name,
     })),
     imageTagMutability: cfg.shared.ecr.image_tag_mutability,
     scanOnPush: cfg.shared.ecr.scan_on_push,
@@ -139,7 +139,7 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
         privateSubnetIds: network.privateSubnetIds,
         securityGroupId: sgs.ecsTasks.id,
         targetGroupArn: tg.targetGroup.arn,
-        containerName: `${backend.key}`,
+        containerName: backend.app_name,
         image,
         containerPort: backend.port,
         cpu: cfg.shared.ecs.cpu,
@@ -169,6 +169,14 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
     }
   }
 
+  // On the PRIMARY, replicate the RDS-managed master secret into every OTHER region
+  // (the passive region) so its ECS tasks can read DB credentials locally on failover.
+  const secretReplicaRegions = isPrimary
+    ? Object.values(cfg.shared.regions)
+        .map((r) => r.aws_region)
+        .filter((region) => region !== cfg.region.aws_region)
+    : [];
+
   const database = new DatabaseComponent(`${namePrefix}-db`, {
     vpcId: network.vpcId,
     privateSubnetIds: network.privateSubnetIds,
@@ -176,13 +184,11 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
     project: cfg.shared.project,
     environment: cfg.shared.environment,
     regionKey,
-    isPrimary: regionKey === "virginia",
+    awsRegion: cfg.region.aws_region,
+    isPrimary,
+    secretReplicaRegions,
     tags: baseTags,
   });
-
-  const dbMasterSecretArn = database.cluster.masterUserSecrets.apply(
-    (secrets) => secrets?.[0]?.secretArn,
-  );
 
   return {
     vpc_id: network.vpcId,
@@ -224,7 +230,8 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
     db_cluster_endpoint: database.cluster.endpoint,
     db_cluster_reader_endpoint: database.cluster.readerEndpoint,
     db_writer_instance_endpoint: database.writerInstance.endpoint,
-    db_master_secret_arn: dbMasterSecretArn,
+    db_master_secret_arn: database.masterSecretArn,
+    db_master_secret_replica_arns: database.masterSecretReplicaArns,
     aws_region: pulumi.output(cfg.region.aws_region),
     region_key: pulumi.output(regionKey),
   };

@@ -13,6 +13,13 @@ export interface RegionSpec {
 
 export interface BackendSpec {
   key: string;
+  /**
+   * Image/container identity: the ECR repository name AND the ECS container name
+   * inside the task definition (e.g. "legacy-api", "new-api"). Distinct from `key`
+   * (v1/v2), which drives the public contract — path patterns and ALB target
+   * groups — and must stay v1/v2. Defaults to `key` when omitted.
+   */
+  app_name: string;
   path_pattern: string;
   port: number;
   /**
@@ -129,7 +136,7 @@ function loadShared(): SharedConfig {
     app_port: number;
     health_check_path: string;
     regions: Record<string, { aws_region: string; cidr: string }>;
-    backends?: Record<string, { path_pattern: string; port: number; image?: string; image_tag?: string }>;
+    backends?: Record<string, { app_name?: string; path_pattern: string; port: number; image?: string; image_tag?: string }>;
     ecr?: Partial<EcrConfig>;
     ecs?: Partial<EcsConfig>;
     api_gateway?: Partial<ApiGatewayConfig>;
@@ -150,6 +157,7 @@ function loadShared(): SharedConfig {
   for (const [key, spec] of Object.entries(raw.backends ?? {})) {
     backends.push({
       key,
+      app_name: spec.app_name ?? key,
       path_pattern: spec.path_pattern,
       port: Number(spec.port),
       image: spec.image,

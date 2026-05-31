@@ -23,10 +23,14 @@ health_check_path: /health
 #     (overrides image_tag).
 backends:
   v1:
+    # app_name = ECR repository name AND ECS container name. The key (v1/v2) stays
+    # the routing/contract identity; app_name is the human-friendly image identity.
+    app_name: legacy-api
     path_pattern: /api/v1/*
     port: 8080
     # image_tag: latest
   v2:
+    app_name: new-api
     path_pattern: /api/v2/*
     port: 3000
     # image_tag: latest
@@ -34,9 +38,9 @@ backends:
 # ECR registries: one repository per backend, created in EVERY region (ECR is
 # regional). The same image is pushed to both regions so each region's ECS task
 # pulls from its local registry — no cross-region pull on failover. Repo names are
-# "<project>-<backend>" (e.g. aws-multi-region-v1, aws-multi-region-v2), identical
-# across regions on purpose. Created regardless of ecs.service_enabled, since the
-# repo must exist before an image can be pushed.
+# each backend's `app_name` (legacy-api, new-api), identical across regions on
+# purpose. Created regardless of ecs.service_enabled, since the repo must exist
+# before an image can be pushed.
 ecr:
   image_tag_mutability: IMMUTABLE
   scan_on_push: true

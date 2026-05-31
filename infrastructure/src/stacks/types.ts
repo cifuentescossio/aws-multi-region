@@ -47,6 +47,7 @@ export interface ProgramOutputs {
   db_cluster_reader_endpoint?: pulumi.Output<string>;
   db_writer_instance_endpoint?: pulumi.Output<string>;
   db_master_secret_arn?: pulumi.Output<string | undefined>;
+  db_master_secret_replica_arns?: pulumi.Output<Record<string, string>>;
   aws_region?: pulumi.Output<string>;
   region_key?: pulumi.Output<string>;
   hosted_zone_id?: pulumi.Output<string>;

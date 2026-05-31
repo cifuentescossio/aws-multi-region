@@ -46,6 +46,7 @@ export const db_cluster_endpoint = outputs.db_cluster_endpoint;
 export const db_cluster_reader_endpoint = outputs.db_cluster_reader_endpoint;
 export const db_writer_instance_endpoint = outputs.db_writer_instance_endpoint;
 export const db_master_secret_arn = outputs.db_master_secret_arn;
+export const db_master_secret_replica_arns = outputs.db_master_secret_replica_arns;
 export const aws_region = outputs.aws_region;
 export const region_key = outputs.region_key;
 export const hosted_zone_id = outputs.hosted_zone_id;
