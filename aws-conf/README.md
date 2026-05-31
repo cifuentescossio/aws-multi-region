@@ -5,6 +5,16 @@ activo-pasivo (pilot light DR).
 
 ---
 
+## Pipelines CI/CD — ejecuciones exitosas
+
+| Proyecto         | Pipeline                                                                            |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| `infrastructure` | https://github.com/cifuentescossio/aws-multi-region/actions/runs/26709696363        |
+| `legacy-api`     | https://github.com/cifuentescossio/aws-multi-region/actions/runs/26709721512        |
+| `new-api`        | https://github.com/cifuentescossio/aws-multi-region/actions/runs/26709721514        |
+
+---
+
 ## 00 · Pulumi
 
 ### Stacks y outputs del despliegue
