@@ -7,7 +7,8 @@ export * from "./edge/alb";
 export * from "./edge/apigw";
 export * from "./edge/dns";
 
-// Compute: ECS cluster/roles and the per-backend Fargate services.
+// Compute: ECR registries, ECS cluster/roles and the per-backend Fargate services.
+export * from "./compute/ecr";
 export * from "./compute/ecs";
 export * from "./compute/ecs-service";
 

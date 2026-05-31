@@ -15,7 +15,23 @@ export interface BackendSpec {
   key: string;
   path_pattern: string;
   port: number;
+  /**
+   * Full image URI override. Normally left unset: the image is derived from the
+   * in-region ECR repo this stack creates (`<repoUrl>:<image_tag>`) so each region
+   * pulls from its local registry. Set this only to pin an image from elsewhere.
+   */
   image?: string;
+  /** Tag to pull from the in-region ECR repo (e.g. "latest" or a git sha). */
+  image_tag?: string;
+}
+
+export interface EcrConfig {
+  /** IMMUTABLE blocks overwriting an existing tag (recommended). */
+  image_tag_mutability: "MUTABLE" | "IMMUTABLE";
+  /** Run a basic vulnerability scan on every push. */
+  scan_on_push: boolean;
+  /** Keep only the most recent N images (lifecycle policy). */
+  max_image_count: number;
 }
 
 export interface EcsConfig {
@@ -66,6 +82,7 @@ export interface SharedConfig {
   health_check_path: string;
   regions: Record<string, RegionSpec>;
   backends: BackendSpec[];
+  ecr: EcrConfig;
   ecs: EcsConfig;
   api_gateway: ApiGatewayConfig;
   observability: ObservabilityConfig;
@@ -112,7 +129,8 @@ function loadShared(): SharedConfig {
     app_port: number;
     health_check_path: string;
     regions: Record<string, { aws_region: string; cidr: string }>;
-    backends?: Record<string, { path_pattern: string; port: number; image?: string }>;
+    backends?: Record<string, { path_pattern: string; port: number; image?: string; image_tag?: string }>;
+    ecr?: Partial<EcrConfig>;
     ecs?: Partial<EcsConfig>;
     api_gateway?: Partial<ApiGatewayConfig>;
     observability?: Partial<ObservabilityConfig>;
@@ -135,8 +153,17 @@ function loadShared(): SharedConfig {
       path_pattern: spec.path_pattern,
       port: Number(spec.port),
       image: spec.image,
+      image_tag: spec.image_tag,
     });
   }
+
+  const ecrRaw = raw.ecr ?? {};
+  const ecr: EcrConfig = {
+    image_tag_mutability:
+      (ecrRaw.image_tag_mutability as "MUTABLE" | "IMMUTABLE" | undefined) ?? "IMMUTABLE",
+    scan_on_push: ecrRaw.scan_on_push ?? true,
+    max_image_count: Number(ecrRaw.max_image_count ?? 20),
+  };
 
   const ecsRaw = raw.ecs ?? {};
   const ecs: EcsConfig = {
@@ -180,6 +207,7 @@ function loadShared(): SharedConfig {
     health_check_path: raw.health_check_path,
     regions,
     backends,
+    ecr,
     ecs,
     api_gateway,
     observability,

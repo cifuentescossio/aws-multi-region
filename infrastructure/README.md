@@ -25,8 +25,9 @@ target and Oregon is the SECONDARY DR standby.
 - Regional API Gateway REST API with API key + usage plan throttling (burst/rate/quota). Authentication is **API-key only** in this iteration — no JWT authorizer yet (planned, see design doc section 8.1). The public `/health` endpoint is exempt from the API key.
 - Regional WAFv2 attached to API Gateway stage (AWS managed common rules + rate-based rule).
 - VPC Link and private NLB bridge from API Gateway to private ALB.
+- ECR repositories per backend (`<project>-v1`, `<project>-v2`), created **per region** (ECR is regional) so each region pulls images from its local registry. Immutable tags, scan-on-push, and a lifecycle policy keeping the last N images. Created **unconditionally** (independent of `ecs.service_enabled`) — the repo must exist before an image can be pushed.
 - ECS Fargate cluster with capacity providers, log group, task execution + task IAM roles.
-- ECS Fargate **service + App Auto Scaling** scaffolding per backend (target-tracking on CPU), wired to the v1/v2 ALB target groups. **Disabled by default** (`ecs.service_enabled: false`): it only deploys when enabled and a container `image` is set per backend. Pilot light: PRIMARY runs warm at `min_capacity`, SECONDARY at `passive_min_capacity`.
+- ECS Fargate **service + App Auto Scaling** scaffolding per backend (target-tracking on CPU), wired to the v1/v2 ALB target groups. **Disabled by default** (`ecs.service_enabled: false`): it only deploys when enabled and an `image_tag` (or full `image` override) is set per backend. The container URI is derived from the in-region ECR repo (`<repoUrl>:<image_tag>`). Pilot light: PRIMARY runs warm at `min_capacity`, SECONDARY at `passive_min_capacity`.
 - Aurora PostgreSQL Global Database with a primary writer in Virginia and a replicated secondary in Oregon.
 - Public, unauthenticated `/health` endpoint on each API Gateway (proxied to the backend) for the Route 53 health check.
 - Route 53 failover records pointing `api.cifuentescossio.com` to each regional API Gateway custom domain, with a health check on the Virginia (PRIMARY) endpoint driving automatic failover to Oregon (SECONDARY).
@@ -98,6 +99,7 @@ infrastructure/
         apigw.ts
         dns.ts
       compute/
+        ecr.ts              # per-backend ECR repositories (regional)
         ecs.ts
         ecs-service.ts
       data/

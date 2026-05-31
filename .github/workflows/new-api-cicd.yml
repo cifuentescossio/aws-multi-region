@@ -34,9 +34,9 @@ jobs:
       group: new-api-checks-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: npm
@@ -81,7 +81,7 @@ jobs:
             db_host: ${{ vars.DB_CLUSTER_ENDPOINT_OREGON }}
             db_secret_arn: ${{ vars.DB_MASTER_SECRET_ARN_OREGON }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Validate deploy target
         env:
           CLUSTER: ${{ matrix.cluster }}
@@ -94,7 +94,7 @@ jobs:
           : "${DB_HOST:?Missing DB_CLUSTER_ENDPOINT_* var for ${{ matrix.region_key }}}"
           : "${DB_SECRET_ARN:?Missing DB_MASTER_SECRET_ARN_* var for ${{ matrix.region_key }}}"
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ matrix.aws_region }}

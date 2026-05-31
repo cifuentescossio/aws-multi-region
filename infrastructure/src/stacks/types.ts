@@ -32,6 +32,7 @@ export interface ProgramOutputs {
   api_gateway_waf_arn?: pulumi.Output<string>;
   api_gateway_vpclink_id?: pulumi.Output<string>;
   backend_nlb_arn?: pulumi.Output<string>;
+  ecr_repository_urls?: pulumi.Output<Record<string, string>>;
   ecs_cluster_arn?: pulumi.Output<string>;
   ecs_cluster_name?: pulumi.Output<string>;
   ecs_task_execution_role_arn?: pulumi.Output<string>;

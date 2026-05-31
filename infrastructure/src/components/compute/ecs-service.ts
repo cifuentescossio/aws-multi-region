@@ -15,7 +15,7 @@ export interface EcsServiceArgs {
   /** ALB target group this service registers into (the v1 or v2 group). */
   targetGroupArn: pulumi.Input<string>;
   containerName: string;
-  image: string;
+  image: pulumi.Input<string>;
   containerPort: number;
   cpu: number;
   memory: number;

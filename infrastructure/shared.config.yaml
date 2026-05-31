@@ -14,15 +14,33 @@ health_check_path: /health
 # until ECS task definitions are attached in a future iteration.
 #   v1 -> /api/v1/*  (legacy Java / Spring Boot)
 #   v2 -> /api/v2/*  (modern TypeScript / Node)
+#
+# Image resolution (only matters when ecs.service_enabled is true):
+#   - Normal path: set `image_tag` and the stack derives the URI from the ECR repo
+#     it creates IN THAT REGION (<account>.dkr.ecr.<region>.amazonaws.com/<repo>:<tag>),
+#     so Virginia and Oregon each pull from their local registry.
+#   - Escape hatch: set `image` to a full URI to pin an image from elsewhere
+#     (overrides image_tag).
 backends:
   v1:
     path_pattern: /api/v1/*
     port: 8080
-    # image: <account>.dkr.ecr.us-east-1.amazonaws.com/backend-v1:latest
+    # image_tag: latest
   v2:
     path_pattern: /api/v2/*
     port: 3000
-    # image: <account>.dkr.ecr.us-east-1.amazonaws.com/backend-v2:latest
+    # image_tag: latest
+
+# ECR registries: one repository per backend, created in EVERY region (ECR is
+# regional). The same image is pushed to both regions so each region's ECS task
+# pulls from its local registry — no cross-region pull on failover. Repo names are
+# "<project>-<backend>" (e.g. aws-multi-region-v1, aws-multi-region-v2), identical
+# across regions on purpose. Created regardless of ecs.service_enabled, since the
+# repo must exist before an image can be pushed.
+ecr:
+  image_tag_mutability: IMMUTABLE
+  scan_on_push: true
+  max_image_count: 20
 
 # ECS service + App Auto Scaling scaffolding for the active-passive compute layer.
 # Disabled by default: with no container image (backends not built yet) there is

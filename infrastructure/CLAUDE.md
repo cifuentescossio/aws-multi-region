@@ -60,9 +60,14 @@ Pulumi.<stack>.yaml     # per-stack config
 - **Fixed ingress chain:** `API Gateway REST → VPC Link → internal NLB → private ALB`. The L7
   v1/v2 split is done by the ALB (`/api/v1/*`→8080, `/api/v2/*`→3000). The NLB is just the L4
   bridge required by the REST API VPC Link — do not remove it (see README §8.2).
+- **ECR is regional, created unconditionally:** `EcrComponent` makes one repo per backend
+  (`<project>-<key>`) in **every** regional stack — same name across regions on purpose (separate
+  regional namespaces, no collision), so the image is pushed to both and each region pulls locally.
+  Created regardless of `ecs.service_enabled` (the repo must exist before an image can be pushed).
 - **ECS service disabled by default** (`ecs.service_enabled: false`): it only deploys with the flag
-  on and an `image` set per backend. `desiredCount` is governed by autoscaling — Pulumi **ignores
-  changes** to that field, do not force it.
+  on and an `image_tag` (or full `image` override) set per backend. The container URI is **derived**
+  from the in-region ECR repo (`<repoUrl>:<image_tag>`), so don't hardcode a region in the URI.
+  `desiredCount` is governed by autoscaling — Pulumi **ignores changes** to that field, do not force it.
 - **Auth = API Key + Usage Plan**, WAFv2 on the stage. `/health` is public (probed by Route 53).
   Do **not** implement a JWT authorizer unless explicitly asked (it's a future path, README §8.1).
 - **Observability (`observability.*`):** when enabled, `EcsClusterComponent` creates a Secrets

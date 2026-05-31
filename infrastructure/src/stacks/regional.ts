@@ -6,6 +6,7 @@ import {
   AlbComponent,
   ApiGatewayComponent,
   DatabaseComponent,
+  EcrComponent,
   EcsClusterComponent,
   EcsServiceComponent,
   NetworkComponent,
@@ -76,8 +77,23 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
         wafRateLimit: cfg.api_gateway.waf_rate_limit,
         enableManagedCommonRuleSet: cfg.api_gateway.waf_managed_common_enabled,
         tags: baseTags,
-      }, { dependsOn: [alb.certificateValidation] })
+      }, { dependsOn: [alb.certificateValidation, alb.backendListener] })
     : undefined;
+
+  // Per-backend ECR repositories. Regional (one copy per region) and created
+  // unconditionally: the repo must exist before CI can push an image, and an
+  // image must exist before the ECS service can be enabled. Names are identical
+  // across regions on purpose (separate regional namespaces, no collision).
+  const ecr = new EcrComponent(`${namePrefix}-ecr`, {
+    backends: cfg.shared.backends.map((b) => ({
+      key: b.key,
+      name: `${project}-${b.key}`,
+    })),
+    imageTagMutability: cfg.shared.ecr.image_tag_mutability,
+    scanOnPush: cfg.shared.ecr.scan_on_push,
+    maxImageCount: cfg.shared.ecr.max_image_count,
+    tags: baseTags,
+  });
 
   const obs = cfg.shared.observability;
   const ecs = new EcsClusterComponent(`${namePrefix}-ecs`, {
@@ -96,7 +112,17 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
   const isPrimary = regionKey === "virginia";
   if (cfg.shared.ecs.service_enabled) {
     for (const backend of cfg.shared.backends) {
-      if (!backend.image) {
+      // Effective image: an explicit full-URI override wins; otherwise derive the
+      // in-region ECR URI from the repo this stack created plus the configured
+      // tag, so each region pulls from its local registry. Skip the backend when
+      // neither is set (nothing to run yet).
+      const repo = ecr.repositories.find((r) => r.key === backend.key);
+      const image: pulumi.Input<string> | undefined = backend.image
+        ? backend.image
+        : backend.image_tag && repo
+          ? pulumi.interpolate`${repo.repository.repositoryUrl}:${backend.image_tag}`
+          : undefined;
+      if (!image) {
         continue;
       }
       const tg = alb.targetGroups.find((t) => t.key === backend.key);
@@ -114,7 +140,7 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
         securityGroupId: sgs.ecsTasks.id,
         targetGroupArn: tg.targetGroup.arn,
         containerName: `${backend.key}`,
-        image: backend.image,
+        image,
         containerPort: backend.port,
         cpu: cfg.shared.ecs.cpu,
         memory: cfg.shared.ecs.memory,
@@ -184,6 +210,7 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
     api_gateway_waf_arn: api?.webAcl.arn,
     api_gateway_vpclink_id: api?.vpcLink.id,
     backend_nlb_arn: api?.nlb.arn,
+    ecr_repository_urls: ecr.repositoryUrls,
     ecs_cluster_arn: ecs.cluster.arn,
     ecs_cluster_name: ecs.cluster.name,
     ecs_task_execution_role_arn: ecs.taskExecutionRole.arn,

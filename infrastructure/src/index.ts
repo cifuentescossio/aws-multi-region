@@ -31,6 +31,7 @@ export const api_gateway_usage_plan_id = outputs.api_gateway_usage_plan_id;
 export const api_gateway_waf_arn = outputs.api_gateway_waf_arn;
 export const api_gateway_vpclink_id = outputs.api_gateway_vpclink_id;
 export const backend_nlb_arn = outputs.backend_nlb_arn;
+export const ecr_repository_urls = outputs.ecr_repository_urls;
 export const ecs_cluster_arn = outputs.ecs_cluster_arn;
 export const ecs_cluster_name = outputs.ecs_cluster_name;
 export const ecs_task_execution_role_arn = outputs.ecs_task_execution_role_arn;
