@@ -83,4 +83,4 @@ legacy-api/
 
 See [`CLAUDE.md`](CLAUDE.md) for the full list. Highlights: all endpoints under `/v1`,
 constructor injection with final fields, centralized error handling, SLF4J logging (never
-`System.out`), and no Spring Boot / Java version bumps unless asked.
+`System.out`), and no Spring Boot - Java version bumps unless asked.

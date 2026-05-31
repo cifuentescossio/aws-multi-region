@@ -37,6 +37,12 @@ export class AlbComponent extends pulumi.ComponentResource {
   public readonly loadBalancer: aws.lb.LoadBalancer;
   public readonly targetGroups: { key: string; targetGroup: aws.lb.TargetGroup }[] = [];
   public readonly targetGroupArns: pulumi.Output<Record<string, string>>;
+  /**
+   * Per-backend listener rules. A target group is only "associated with a load
+   * balancer" (as ECS requires before a service can register into it) once its
+   * forwarding rule exists, so ECS services must depend on the matching rule here.
+   */
+  public readonly listenerRules: { key: string; rule: aws.lb.ListenerRule }[] = [];
   public readonly httpsListener: aws.lb.Listener;
   public readonly httpListener: aws.lb.Listener;
   public readonly backendListener: aws.lb.Listener;
@@ -221,7 +227,7 @@ export class AlbComponent extends pulumi.ComponentResource {
 
     args.backends.forEach((backend, i) => {
       const tg = this.targetGroups[i].targetGroup;
-      new aws.lb.ListenerRule(
+      const rule = new aws.lb.ListenerRule(
         `${name}-${backend.key}-rule`,
         {
           listenerArn: this.backendListener.arn,
@@ -243,6 +249,7 @@ export class AlbComponent extends pulumi.ComponentResource {
         },
         childOpts,
       );
+      this.listenerRules.push({ key: backend.key, rule });
     });
 
     this.registerOutputs({

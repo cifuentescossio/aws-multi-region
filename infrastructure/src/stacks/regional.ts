@@ -130,6 +130,10 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
       if (!tg) {
         continue;
       }
+      // The target group is only associated with the ALB once its forwarding
+      // listener rule exists; ECS rejects a service whose target group has no
+      // associated load balancer. Depend on the rule to force that ordering.
+      const listenerRule = alb.listenerRules.find((r) => r.key === backend.key);
       new EcsServiceComponent(`${namePrefix}-${backend.key}-svc`, {
         clusterArn: ecs.cluster.arn,
         clusterName: ecs.cluster.name,
@@ -166,7 +170,7 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
             }
           : undefined,
         tags: baseTags,
-      });
+      }, listenerRule ? { dependsOn: [listenerRule.rule] } : undefined);
     }
   }
 
