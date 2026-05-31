@@ -236,16 +236,20 @@ export class ApiGatewayComponent extends pulumi.ComponentResource {
       {
         restApi: this.restApi.id,
         triggers: {
+          // Hash the actual integration config (URIs), not just resource IDs: an
+          // Integration's id is stable across uri changes, so keying only on .id
+          // means editing healthCheckPath / routing never triggers a new
+          // deployment and the stage silently serves a stale snapshot.
           redeploy: pulumi
             .all([
               rootAnyMethod.id,
               proxyAnyMethod.id,
-              rootIntegration.id,
-              proxyIntegration.id,
               healthMethod.id,
-              healthIntegration.id,
+              rootIntegration.uri,
+              proxyIntegration.uri,
+              healthIntegration.uri,
             ])
-            .apply((ids) => ids.join(",")),
+            .apply((parts) => parts.join(",")),
         },
       },
       { ...childOpts, dependsOn: [rootIntegration, proxyIntegration, healthIntegration] },
