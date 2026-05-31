@@ -60,6 +60,35 @@ export class DatabaseComponent extends pulumi.ComponentResource {
       childOpts,
     );
 
+    // A cross-region encrypted Aurora replica MUST be given an explicit KMS key in
+    // its OWN region: the primary's key (in the primary region) is not usable here,
+    // and AWS will not fall back to the regional default for a replica. We mint a
+    // region-local CMK for the SECONDARY (with rotation) instead of relying on the
+    // AWS-managed `aws/rds` key, which is created lazily and may not exist yet in a
+    // brand-new passive region. The PRIMARY keeps using the region default.
+    let secondaryKmsKeyArn: pulumi.Input<string> | undefined;
+    if (!args.isPrimary) {
+      const dbKmsKey = new aws.kms.Key(
+        `${name}-kms`,
+        {
+          description: `Aurora cross-region replica encryption (${args.regionKey})`,
+          deletionWindowInDays: 7,
+          enableKeyRotation: true,
+          tags: { ...baseTags, Name: `${name}-kms` },
+        },
+        childOpts,
+      );
+      new aws.kms.Alias(
+        `${name}-kms-alias`,
+        {
+          name: `alias/${args.project}-${args.environment}-aurora-${args.regionKey}`,
+          targetKeyId: dbKmsKey.keyId,
+        },
+        childOpts,
+      );
+      secondaryKmsKeyArn = dbKmsKey.arn;
+    }
+
     if (args.isPrimary) {
       this.globalCluster = new aws.rds.GlobalCluster(
         `${name}-global`,
@@ -138,6 +167,9 @@ export class DatabaseComponent extends pulumi.ComponentResource {
         dbSubnetGroupName: this.subnetGroup.name,
         vpcSecurityGroupIds: [args.databaseSecurityGroupId],
         storageEncrypted: true,
+        // Secondary only: region-local CMK is required for the encrypted replica.
+        // Primary leaves this undefined and uses the region's default RDS key.
+        kmsKeyId: secondaryKmsKeyArn,
         backupRetentionPeriod,
         copyTagsToSnapshot: true,
         deletionProtection: true,

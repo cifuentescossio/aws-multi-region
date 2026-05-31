@@ -25,7 +25,9 @@
       "Read(//c/c/Users/bella/Desktop/aws-multi-region/infrastructure/**)",
       "Read(/Users/cifuentescossio/Desktop/aws-multi-region/infrastructure/**)",
       "Bash(jq --version)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(aws sts *)",
+      "Bash(aws ecs *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\bella\\.claude\\projects\\c--Users-bella-OneDrive-Desktop-research\\memory",
