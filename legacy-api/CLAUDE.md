@@ -1,7 +1,7 @@
 # CLAUDE.md — legacy-api (backend v1)
 
 API service in **Java 21 / Spring Boot 3.3** that exposes the AWS region. This is the **v1**
-(legacy) backend; behind the ALB it serves `/api/v1/*` and listens on port `8080`. The modern
+(legacy) backend; behind the ALB it serves `/v1/*` and listens on port `8080`. The modern
 equivalent is `../new-api` (TypeScript) — keep functional parity with it.
 
 ## Commands

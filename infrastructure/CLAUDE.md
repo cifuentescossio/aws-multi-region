@@ -58,7 +58,7 @@ Pulumi.<stack>.yaml     # per-stack config
   YAML directly from components.
 - **Name resources with `region_key`** to avoid collisions between stacks.
 - **Fixed ingress chain:** `API Gateway REST → VPC Link → internal NLB → private ALB`. The L7
-  v1/v2 split is done by the ALB (`/api/v1/*`→8080, `/api/v2/*`→3000). The NLB is just the L4
+  v1/v2 split is done by the ALB (`/v1/*`→8080, `/v2/*`→3000). The NLB is just the L4
   bridge required by the REST API VPC Link — do not remove it (see README §8.2).
 - **ECR is regional, created unconditionally:** `EcrComponent` makes one repo per backend, named
   after the backend's `app_name` (`legacy-api`, `new-api`), in **every** regional stack — same name

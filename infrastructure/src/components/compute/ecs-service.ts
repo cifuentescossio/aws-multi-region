@@ -199,7 +199,10 @@ export class EcsServiceComponent extends pulumi.ComponentResource {
             containerPort: args.containerPort,
           },
         ],
-        healthCheckGracePeriodSeconds: 60,
+        // Generous grace period: Spring Boot (v1) cold-starts with the OTEL Java
+        // agent attached, which can exceed 60s on Fargate before /actuator/health
+        // returns 200. Avoids the task being killed by the ALB check mid-boot.
+        healthCheckGracePeriodSeconds: 120,
         tags: { ...baseTags, Name: `${name}-svc` },
       },
       // Auto Scaling owns desiredCount after creation; don't let Pulumi fight it.

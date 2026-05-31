@@ -69,87 +69,39 @@ runs:
           ${{ steps.ecr.outputs.registry }}/${{ inputs.ecr-repository }}:latest
         cache-from: type=gha,scope=${{ inputs.ecr-repository }}
         cache-to: type=gha,mode=max,scope=${{ inputs.ecr-repository }}
-    - name: Update ECS service task definition image
+    - name: Resolve current task definition ARN
+      id: taskdef
       shell: bash
-      env:
-        IMAGE_URI: ${{ steps.ecr.outputs.registry }}/${{ inputs.ecr-repository }}:${{ inputs.image-tag }}
-        CONTAINER_NAME: ${{ inputs.container-name }}
-        CLUSTER_NAME: ${{ inputs.cluster-name }}
-        SERVICE_NAME: ${{ inputs.service-name }}
-        DB_HOST: ${{ inputs.db-host }}
-        DB_SECRET_ARN: ${{ inputs.db-secret-arn }}
-        DB_NAME: ${{ inputs.db-name }}
-        DB_USER: ${{ inputs.db-user }}
-        DB_PORT: ${{ inputs.db-port }}
       run: |
-        aws ecs describe-services --cluster "${CLUSTER_NAME}" --services "${SERVICE_NAME}" --region "${{ inputs.aws-region }}" > service.json
-        TASK_DEF_ARN="$(jq -r '.services[0].taskDefinition' service.json)"
-
-        if [ -z "${TASK_DEF_ARN}" ] || [ "${TASK_DEF_ARN}" = "null" ]; then
-          echo "Could not resolve task definition ARN for service ${SERVICE_NAME}."
+        TASK_DEF_ARN="$(aws ecs describe-services \
+          --cluster "${{ inputs.cluster-name }}" \
+          --services "${{ inputs.service-name }}" \
+          --region "${{ inputs.aws-region }}" \
+          --query 'services[0].taskDefinition' --output text)"
+        if [ -z "${TASK_DEF_ARN}" ] || [ "${TASK_DEF_ARN}" = "None" ]; then
+          echo "Could not resolve task definition ARN for service ${{ inputs.service-name }}." >&2
           exit 1
         fi
-
-        aws ecs describe-task-definition --task-definition "${TASK_DEF_ARN}" --region "${{ inputs.aws-region }}" > taskdef.json
-
-        jq --arg IMAGE "${IMAGE_URI}" --arg CONTAINER "${CONTAINER_NAME}" '
-          .taskDefinition
-          | .containerDefinitions = (
-              if ([.containerDefinitions[].name] | index($CONTAINER)) != null then
-                (.containerDefinitions | map(
-                  if .name == $CONTAINER then
-                    .image = $IMAGE
-                    | .environment = ((.environment // [])
-                        | map(select(.name != "DB_HOST" and .name != "DB_NAME" and .name != "DB_USER" and .name != "DB_PORT" and .name != "DB_ENGINE"))
-                        + [
-                            {name: "DB_HOST", value: env.DB_HOST},
-                            {name: "DB_NAME", value: env.DB_NAME},
-                            {name: "DB_USER", value: env.DB_USER},
-                            {name: "DB_PORT", value: env.DB_PORT},
-                            {name: "DB_ENGINE", value: "aurora-postgresql"}
-                          ])
-                    | .secrets = ((.secrets // [])
-                        | map(select(.name != "DB_MASTER_SECRET_ARN"))
-                        + [{name: "DB_MASTER_SECRET_ARN", valueFrom: env.DB_SECRET_ARN}])
-                  else . end
-                ))
-              else
-                (.containerDefinitions | (.[0].image = $IMAGE
-                  | .[0].environment = ((.[0].environment // [])
-                      | map(select(.name != "DB_HOST" and .name != "DB_NAME" and .name != "DB_USER" and .name != "DB_PORT" and .name != "DB_ENGINE"))
-                      + [
-                          {name: "DB_HOST", value: env.DB_HOST},
-                          {name: "DB_NAME", value: env.DB_NAME},
-                          {name: "DB_USER", value: env.DB_USER},
-                          {name: "DB_PORT", value: env.DB_PORT},
-                          {name: "DB_ENGINE", value: "aurora-postgresql"}
-                        ])
-                  | .[0].secrets = ((.[0].secrets // [])
-                      | map(select(.name != "DB_MASTER_SECRET_ARN"))
-                      + [{name: "DB_MASTER_SECRET_ARN", valueFrom: env.DB_SECRET_ARN}]))
-              end
-            )
-          | {
-              family,
-              taskRoleArn,
-              executionRoleArn,
-              networkMode,
-              containerDefinitions,
-              volumes,
-              placementConstraints,
-              requiresCompatibilities,
-              cpu,
-              memory,
-              runtimePlatform,
-              ephemeralStorage,
-              proxyConfiguration,
-              inferenceAccelerators,
-              pidMode,
-              ipcMode
-            }
-          | with_entries(select(.value != null))
-        ' taskdef.json > new-taskdef.json
-
-        NEW_TASK_DEF_ARN="$(aws ecs register-task-definition --region "${{ inputs.aws-region }}" --cli-input-json file://new-taskdef.json | jq -r '.taskDefinition.taskDefinitionArn')"
-
-        aws ecs update-service --cluster "${CLUSTER_NAME}" --service "${SERVICE_NAME}" --task-definition "${NEW_TASK_DEF_ARN}" --force-new-deployment --region "${{ inputs.aws-region }}"
+        echo "arn=${TASK_DEF_ARN}" >> "$GITHUB_OUTPUT"
+    - name: Render task definition with new image and DB wiring
+      id: render
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition-arn: ${{ steps.taskdef.outputs.arn }}
+        container-name: ${{ inputs.container-name }}
+        image: ${{ steps.ecr.outputs.registry }}/${{ inputs.ecr-repository }}:${{ inputs.image-tag }}
+        environment-variables: |
+          DB_HOST=${{ inputs.db-host }}
+          DB_NAME=${{ inputs.db-name }}
+          DB_USER=${{ inputs.db-user }}
+          DB_PORT=${{ inputs.db-port }}
+          DB_ENGINE=aurora-postgresql
+        secrets: |
+          DB_MASTER_SECRET_ARN=${{ inputs.db-secret-arn }}
+    - name: Deploy task definition to ECS service
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+      with:
+        task-definition: ${{ steps.render.outputs.task-definition }}
+        cluster: ${{ inputs.cluster-name }}
+        service: ${{ inputs.service-name }}
+        force-new-deployment: true

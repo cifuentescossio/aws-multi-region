@@ -7,13 +7,21 @@ record_name: api.cifuentescossio.com
 
 # Port the internal ALB listens on for ingress from the API Gateway (NLB bridge).
 app_port: 8080
-health_check_path: /health
+# Backend path proxied by the public API Gateway /health endpoint (probed by the
+# Route 53 failover health check). Must be a REAL, routable backend health path:
+# it travels API GW -> NLB -> ALB backend listener, so an ALB listener rule has to
+# match it. We use v1's actuator health as the canonical region-health signal.
+health_check_path: /v1/actuator/health
 
 # Path-based routing on the internal ALB. Each backend gets its own target group
 # and listener rule on the ALB backend listener. Target groups stay empty (503)
 # until ECS task definitions are attached in a future iteration.
-#   v1 -> /api/v1/*  (legacy Java / Spring Boot)
-#   v2 -> /api/v2/*  (modern TypeScript / Node)
+#   v1 -> /v1/*  (legacy Java / Spring Boot)
+#   v2 -> /v2/*  (modern TypeScript / Node)
+# The ALB forwards the path unchanged (no rewrite), so the listener-rule pattern
+# and the per-backend health_check_path must match exactly what each service
+# serves: legacy-api routes under /v1 (health /v1/actuator/health), new-api under
+# /v2 (health /v2/actuator/health).
 #
 # Image resolution (only matters when ecs.service_enabled is true):
 #   - Normal path: set `image_tag` and the stack derives the URI from the ECR repo
@@ -26,13 +34,15 @@ backends:
     # app_name = ECR repository name AND ECS container name. The key (v1/v2) stays
     # the routing/contract identity; app_name is the human-friendly image identity.
     app_name: legacy-api
-    path_pattern: /api/v1/*
+    path_pattern: /v1/*
     port: 8080
+    health_check_path: /v1/actuator/health
     # image_tag: latest
   v2:
     app_name: new-api
-    path_pattern: /api/v2/*
+    path_pattern: /v2/*
     port: 3000
+    health_check_path: /v2/actuator/health
     # image_tag: latest
 
 # ECR registries: one repository per backend, created in EVERY region (ECR is

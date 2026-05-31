@@ -1,7 +1,7 @@
 # CLAUDE.md — new-api (backend v2)
 
 API service in **TypeScript / Node 20 / Express 4** that exposes the AWS region. This is the
-**v2** backend; behind the ALB it serves `/api/v2/*` and listens on `PORT` (8080 locally, 3000 in
+**v2** backend; behind the ALB it serves `/v2/*` and listens on `PORT` (8080 locally, 3000 in
 the infra). The legacy equivalent is `../legacy-api` (Java) — keep functional parity with it.
 
 ## Commands

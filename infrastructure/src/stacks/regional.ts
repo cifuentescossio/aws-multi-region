@@ -56,6 +56,7 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
       key: b.key,
       pathPattern: b.path_pattern,
       port: b.port,
+      healthCheckPath: b.health_check_path,
     })),
     tags: baseTags,
   });

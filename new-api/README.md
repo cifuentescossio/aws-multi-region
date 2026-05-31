@@ -1,7 +1,7 @@
 # new-api (backend v2, TypeScript / Node 20 / Express 4)
 
 Modern backend for the aws-multi-region workspace. Exposes the AWS region the service
-runs in. Behind the ALB it serves `/api/v2/*` and listens on `PORT` (8080 locally by
+runs in. Behind the ALB it serves `/v2/*` and listens on `PORT` (8080 locally by
 default, 3000 in the infra). The legacy equivalent is [`../legacy-api`](../legacy-api)
 (Java) — both keep **functional parity**: same observable contract, same region-resolution
 logic.
@@ -11,7 +11,7 @@ logic.
 | Item            | Value                                                       |
 | --------------- | ----------------------------------------------------------- |
 | Stack           | TypeScript 5.7, Node 20, Express 4 (ESM, strict)            |
-| Public path     | `/api/v2/*` (ALB path-based routing)                        |
+| Public path     | `/v2/*` (ALB path-based routing)                            |
 | Listen port     | `PORT` env var, default `8080` (set to `3000` in the infra) |
 | Internal prefix | `/v2` (all routes, including actuator)                      |
 | Role            | v2 / modern backend                                         |

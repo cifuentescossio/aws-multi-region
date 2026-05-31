@@ -1,7 +1,7 @@
 # legacy-api (backend v1, Java 21 / Spring Boot 3.3)
 
 Legacy backend for the aws-multi-region workspace. Exposes the AWS region the service
-runs in. Behind the ALB it serves `/api/v1/*` and listens on port `8080`. The modern
+runs in. Behind the ALB it serves `/v1/*` and listens on port `8080`. The modern
 equivalent is [`../new-api`](../new-api) (TypeScript) — both keep **functional parity**:
 same observable contract, same region-resolution logic.
 
@@ -10,7 +10,7 @@ same observable contract, same region-resolution logic.
 | Item            | Value                                                        |
 | --------------- | ------------------------------------------------------------ |
 | Stack           | Java 21, Spring Boot 3.3 (`spring-boot-starter-parent` 3.3.0)|
-| Public path     | `/api/v1/*` (ALB path-based routing)                         |
+| Public path     | `/v1/*` (ALB path-based routing)                             |
 | Listen port     | `8080`                                                       |
 | Internal prefix | `/v1` (all endpoints, including actuator)                    |
 | Role            | v1 / legacy backend                                          |

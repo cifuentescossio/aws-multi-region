@@ -4,10 +4,16 @@ import * as aws from "@pulumi/aws";
 export interface AlbBackend {
   /** Logical key, e.g. "v1" or "v2". */
   key: string;
-  /** ALB listener-rule path pattern, e.g. /api/v1/*. */
+  /** ALB listener-rule path pattern matching what the service serves, e.g. /v1/*. */
   pathPattern: string;
   /** Port the backend tasks listen on (target group port), e.g. 8080 / 3000. */
   port: number;
+  /**
+   * Health endpoint this backend's target group probes. The ALB hits the target
+   * directly, so it must match what the container serves (e.g. /v1/actuator/health).
+   * Falls back to the ALB-level `healthCheckPath` when omitted.
+   */
+  healthCheckPath?: string;
 }
 
 export interface AlbArgs {
@@ -121,7 +127,7 @@ export class AlbComponent extends pulumi.ComponentResource {
           vpcId: args.vpcId,
           healthCheck: {
             enabled: true,
-            path: healthCheckPath,
+            path: backend.healthCheckPath ?? healthCheckPath,
             protocol: "HTTP",
             matcher: "200-399",
             interval: 30,

@@ -21,7 +21,7 @@ target and Oregon is the SECONDARY DR standby.
 - Networking: VPC (2 AZs, public + private subnets), IGW, NAT Gateway per AZ, route tables, optional flow logs.
 - Security groups for the private ALB, ECS Fargate tasks, and Aurora PostgreSQL.
 - ACM cert (DNS-validated) per region for `api.cifuentescossio.com`.
-- Private ALB with **path-based routing** on the backend listener: `/api/v1/*` -> v1 target group (port 8080, legacy Java) and `/api/v2/*` -> v2 target group (port 3000, modern TS). Unmatched paths return 404; matched-but-empty target groups return 503 until ECS services attach. The HTTPS (443) listener returns 503 by default.
+- Private ALB with **path-based routing** on the backend listener: `/v1/*` -> v1 target group (port 8080, legacy Java) and `/v2/*` -> v2 target group (port 3000, modern TS). The patterns match exactly what each service serves (the ALB forwards the path unchanged), so each target group also health-checks its own real endpoint (`/v1/actuator/health`, `/v2/actuator/health`). Unmatched paths return 404; matched-but-empty target groups return 503 until ECS services attach. The HTTPS (443) listener returns 503 by default.
 - Regional API Gateway REST API with API key + usage plan throttling (burst/rate/quota). Authentication is **API-key only** in this iteration — no JWT authorizer yet (planned, see design doc section 8.1). The public `/health` endpoint is exempt from the API key.
 - Regional WAFv2 attached to API Gateway stage (AWS managed common rules + rate-based rule).
 - VPC Link and private NLB bridge from API Gateway to private ALB.
@@ -55,12 +55,12 @@ pulumi stack init prod-global   && pulumi up --stack prod-global
 # Replace with the actual API key value from API Gateway.
 API_KEY=<actual-api-key-value>
 
-# Path-based routing: /api/v1/* -> legacy (Java) TG, /api/v2/* -> modern (TS) TG.
+# Path-based routing: /v1/* -> legacy (Java) TG, /v2/* -> modern (TS) TG.
 # (Custom domain maps the stage to root, so the stage name is NOT in the URL.)
-curl -i -H "x-api-key: ${API_KEY}" https://api.cifuentescossio.com/api/v1/
-curl -i -H "x-api-key: ${API_KEY}" https://api.cifuentescossio.com/api/v2/
+curl -i -H "x-api-key: ${API_KEY}" https://api.cifuentescossio.com/v1/region
+curl -i -H "x-api-key: ${API_KEY}" https://api.cifuentescossio.com/v2/region
 # Without the API key the business paths are rejected (403):
-curl -i https://api.cifuentescossio.com/api/v1/
+curl -i https://api.cifuentescossio.com/v1/region
 
 # Public failover health endpoint (no API key) — what the Route 53 health check
 # probes. Note: via the execute-api endpoint the path includes the stage

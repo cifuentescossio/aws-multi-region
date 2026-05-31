@@ -23,6 +23,13 @@ export interface BackendSpec {
   path_pattern: string;
   port: number;
   /**
+   * Backend health endpoint for this service's ALB target group health check.
+   * Must match exactly what the container serves (the ALB probes the target
+   * directly, e.g. "/v1/actuator/health" for legacy-api, "/v2/actuator/health"
+   * for new-api). Falls back to the shared `health_check_path` when omitted.
+   */
+  health_check_path: string;
+  /**
    * Full image URI override. Normally left unset: the image is derived from the
    * in-region ECR repo this stack creates (`<repoUrl>:<image_tag>`) so each region
    * pulls from its local registry. Set this only to pin an image from elsewhere.
@@ -136,7 +143,7 @@ function loadShared(): SharedConfig {
     app_port: number;
     health_check_path: string;
     regions: Record<string, { aws_region: string; cidr: string }>;
-    backends?: Record<string, { app_name?: string; path_pattern: string; port: number; image?: string; image_tag?: string }>;
+    backends?: Record<string, { app_name?: string; path_pattern: string; port: number; health_check_path?: string; image?: string; image_tag?: string }>;
     ecr?: Partial<EcrConfig>;
     ecs?: Partial<EcsConfig>;
     api_gateway?: Partial<ApiGatewayConfig>;
@@ -160,6 +167,7 @@ function loadShared(): SharedConfig {
       app_name: spec.app_name ?? key,
       path_pattern: spec.path_pattern,
       port: Number(spec.port),
+      health_check_path: spec.health_check_path ?? raw.health_check_path,
       image: spec.image,
       image_tag: spec.image_tag,
     });

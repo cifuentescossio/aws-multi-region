@@ -10,7 +10,7 @@
 
 ![Diagrama de arquitectura multi-región activo-pasivo: Route 53 con enrutamiento de failover, API Gateway + WAF, VPC Link → NLB puente → ALB interno, backends v1/v2 sobre ECS Fargate y Aurora Global Database replicando de Virginia (us-east-1) a Oregón (us-west-2).](./aws-multi-region-architecture.png)
 
-> El diagrama resume visualmente la arquitectura descrita en este documento: el enrutamiento global con Route 53 (sección 1), la cadena de ingreso `API Gateway → VPC Link → NLB → ALB` (secciones 3 y 10.2), el split de rutas `/api/v1/*` y `/api/v2/*` sobre ECS (secciones 3 y 6) y la replicación de Aurora entre la región principal y la secundaria (sección 5). Las secciones siguientes detallan cada componente.
+> El diagrama resume visualmente la arquitectura descrita en este documento: el enrutamiento global con Route 53 (sección 1), la cadena de ingreso `API Gateway → VPC Link → NLB → ALB` (secciones 3 y 10.2), el split de rutas `/v1/*` y `/v2/*` sobre ECS (secciones 3 y 6) y la replicación de Aurora entre la región principal y la secundaria (sección 5). Las secciones siguientes detallan cada componente.
 
 ---
 
@@ -50,8 +50,8 @@ El ingreso de tráfico está fuertemente protegido y se enruta de manera intelig
     `API Gateway → VPC Link → NLB interno (puerto 8080) → ALB Interno`.
     El NLB se despliega en las subredes privadas con un *target group* de tipo `alb` que registra al ALB Interno, y el API Gateway integra vía `HTTP_PROXY`/`VPC_LINK` contra el DNS del NLB. El control L7 (split de rutas v1/v2) lo sigue haciendo el ALB; el NLB solo actúa de puente L4 exigido por el tipo de API.
 *   **Enrutamiento basado en Rutas (Reglas de Escucha del ALB):** El ALB Interno actúa como el controlador de ingreso, dividiendo el tráfico según la ruta de la URL:
-    *   Las peticiones a `/api/v1/*` se dirigen al Grupo de Destino (Target Group) del **Backend Legado** (Java/Spring Boot, puerto 8080).
-    *   Las peticiones a `/api/v2/*` se dirigen al Grupo de Destino del **Backend Moderno** (TypeScript/Node, puerto 3000).
+    *   Las peticiones a `/v1/*` se dirigen al Grupo de Destino (Target Group) del **Backend Legado** (Java/Spring Boot, puerto 8080). El patrón coincide con lo que el servicio expone realmente (el ALB reenvía la ruta sin reescribirla), por lo que su health check apunta a `/v1/actuator/health`.
+    *   Las peticiones a `/v2/*` se dirigen al Grupo de Destino del **Backend Moderno** (TypeScript/Node, puerto 3000); su health check apunta a `/v2/actuator/health`.
     *   *Estado actual:* las reglas de path y ambos Target Groups ya están desplegados; las rutas no reconocidas devuelven `404`. Los Target Groups permanecen vacíos (responden `503`) hasta que se adjunten los servicios ECS en una iteración futura.
 
 ---

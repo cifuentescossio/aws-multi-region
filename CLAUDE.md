@@ -12,8 +12,8 @@ changes.
 
 | Folder            | Stack                          | Public path  | Port            | Role                       |
 | ----------------- | ------------------------------ | ------------ | --------------- | -------------------------- |
-| `legacy-api/`     | Java 21 / Spring Boot 3.3      | `/api/v1/*`  | 8080            | Legacy backend (v1)        |
-| `new-api/`        | TypeScript / Node 20 / Express | `/api/v2/*`  | 3000 (`PORT`)   | Modern backend (v2)        |
+| `legacy-api/`     | Java 21 / Spring Boot 3.3      | `/v1/*`      | 8080            | Legacy backend (v1)        |
+| `new-api/`        | TypeScript / Node 20 / Express | `/v2/*`      | 3000 (`PORT`)   | Modern backend (v2)        |
 | `infrastructure/` | TypeScript / Pulumi            | —            | —               | IaC (VPC, ALB, API GW, ECS, Aurora, Route 53) |
 
 Each project has its own `CLAUDE.md` with project-specific details and conventions.

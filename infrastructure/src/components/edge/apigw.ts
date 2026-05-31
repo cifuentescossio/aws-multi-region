@@ -9,7 +9,11 @@ export interface ApiGatewayArgs {
   apiDomainName: string;
   certificateArn: pulumi.Input<string>;
   stageName: string;
-  /** Backend health path proxied by the public /health endpoint (e.g. /health). */
+  /**
+   * Backend health path proxied by the public /health endpoint. Must be a real,
+   * ALB-routable backend path (e.g. /v1/actuator/health) since it travels
+   * API GW -> NLB -> ALB listener rules before reaching a container.
+   */
   healthCheckPath: string;
   throttleBurstLimit: number;
   throttleRateLimit: number;
