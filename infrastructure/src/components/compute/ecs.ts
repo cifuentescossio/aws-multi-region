@@ -120,6 +120,12 @@ export class EcsClusterComponent extends pulumi.ComponentResource {
         {
           name: `${args.clusterName}-grafana-otlp-auth`,
           description: "Grafana Cloud OTLP auth header (base64 of instanceID:token)",
+          // Delete immediately instead of scheduling for deletion: Secrets Manager
+          // otherwise reserves the name during the recovery window, so a later
+          // `pulumi up` fails to recreate it ("scheduled for deletion"). The value
+          // is re-seeded from Pulumi config via the SecretVersion below, so there
+          // is nothing worth recovering.
+          recoveryWindowInDays: 0,
           tags: baseTags,
         },
         childOpts,

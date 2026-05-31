@@ -1,6 +1,7 @@
 name: legacy-api-cicd
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - legacy-api/**
@@ -55,8 +56,9 @@ jobs:
 
   deploy:
     name: Deploy legacy-api to ECS
-    # push only fires on main (see on.push.branches), so the event check is enough.
-    if: github.event_name == 'push'
+    # push only fires on main (see on.push.branches); workflow_dispatch defaults to
+    # the main ref too, so a manual run deploys main.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
