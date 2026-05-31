@@ -51,8 +51,6 @@ jobs:
         run: npm run build
       - name: Install Pulumi CLI
         uses: pulumi/actions@v6
-        with:
-          command: version
       - name: Pulumi login
         run: pulumi login "${PULUMI_BACKEND_URL}"
       - name: Preview prod-virginia
@@ -95,8 +93,6 @@ jobs:
         run: npm run build
       - name: Install Pulumi CLI
         uses: pulumi/actions@v6
-        with:
-          command: version
       - name: Pulumi login
         run: pulumi login "${PULUMI_BACKEND_URL}"
       - name: Apply prod-virginia
