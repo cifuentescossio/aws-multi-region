@@ -8,11 +8,7 @@ export interface AlbBackend {
   pathPattern: string;
   /** Port the backend tasks listen on (target group port), e.g. 8080 / 3000. */
   port: number;
-  /**
-   * Health endpoint this backend's target group probes. The ALB hits the target
-   * directly, so it must match what the container serves (e.g. /v1/actuator/health).
-   * Falls back to the ALB-level `healthCheckPath` when omitted.
-   */
+  /** Target-group health path; falls back to the ALB-level `healthCheckPath`. */
   healthCheckPath?: string;
 }
 
@@ -37,11 +33,7 @@ export class AlbComponent extends pulumi.ComponentResource {
   public readonly loadBalancer: aws.lb.LoadBalancer;
   public readonly targetGroups: { key: string; targetGroup: aws.lb.TargetGroup }[] = [];
   public readonly targetGroupArns: pulumi.Output<Record<string, string>>;
-  /**
-   * Per-backend listener rules. A target group is only "associated with a load
-   * balancer" (as ECS requires before a service can register into it) once its
-   * forwarding rule exists, so ECS services must depend on the matching rule here.
-   */
+  /** Per-backend listener rules; ECS services must depend on the matching rule. */
   public readonly listenerRules: { key: string; rule: aws.lb.ListenerRule }[] = [];
   public readonly httpsListener: aws.lb.Listener;
   public readonly httpListener: aws.lb.Listener;
@@ -200,10 +192,7 @@ export class AlbComponent extends pulumi.ComponentResource {
       childOpts,
     );
 
-    // Backend listener: this is the path the API Gateway reaches via the NLB
-    // bridge (API GW -> VPC Link -> NLB:appPort -> ALB:appPort). Path-based
-    // listener rules split traffic between the v1 and v2 target groups.
-    // Unmatched paths get a clear 404.
+    // Backend listener reached via the NLB bridge; rules split v1/v2 traffic.
     this.backendListener = new aws.lb.Listener(
       `${name}-backend`,
       {

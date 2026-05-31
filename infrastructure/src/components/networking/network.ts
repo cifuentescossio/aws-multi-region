@@ -9,14 +9,7 @@ export interface NetworkArgs {
   tags?: Record<string, string>;
 }
 
-/**
- * VPC with public + private subnets across `azCount` AZs, an internet gateway,
- * one NAT gateway per AZ, and route tables — all provided by `awsx.ec2.Vpc`
- * (which also handles CIDR splitting). Optional VPC flow logs to CloudWatch.
- *
- * The public surface (`vpcId`, `vpcCidrBlock`, `publicSubnetIds`,
- * `privateSubnetIds`) is kept stable so consumers don't depend on awsx types.
- */
+/** VPC (public + private subnets, NAT per AZ) via awsx, with optional flow logs. */
 export class NetworkComponent extends pulumi.ComponentResource {
   public readonly vpc: awsx.ec2.Vpc;
   public readonly vpcId: pulumi.Output<string>;
@@ -63,9 +56,7 @@ export class NetworkComponent extends pulumi.ComponentResource {
     this.vpcId = this.vpc.vpcId;
     this.vpcCidrBlock = pulumi.output(args.cidrBlock);
 
-    // awsx exposes subnet IDs as a single Output<string[]>. Re-shape into a
-    // fixed-length Output<string>[] so downstream args (Input<string>[]) are
-    // unchanged from the hand-rolled version.
+    // Re-shape awsx's Output<string[]> into a fixed-length Output<string>[].
     this._publicSubnetIds = Array.from({ length: azCount }, (_, i) =>
       this.vpc.publicSubnetIds.apply((ids) => ids[i]),
     );

@@ -5,8 +5,7 @@ import { buildGlobal } from "./stacks/global";
 const cfg = load();
 const outputs = cfg.kind === "regional" ? buildRegional(cfg) : buildGlobal(cfg);
 
-// Flat top-level stack outputs. Kept flat (not nested under one object) because
-// the global stack reads the regional ones by name via StackReference.getOutput.
+// Flat top-level outputs: the global stack reads them via StackReference.getOutput.
 export const vpc_id = outputs.vpc_id;
 export const vpc_cidr = outputs.vpc_cidr;
 export const public_subnet_ids = outputs.public_subnet_ids;

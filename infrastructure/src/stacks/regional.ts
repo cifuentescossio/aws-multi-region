@@ -14,10 +14,7 @@ import {
 } from "../components";
 import { ProgramOutputs } from "./types";
 
-/**
- * Builds one regional stack: VPC, security groups, private ALB, API Gateway,
- * ECS cluster (+ optional Fargate services), and the Aurora regional cluster.
- */
+/** Builds one regional stack: VPC, ALB, API Gateway, ECS, and Aurora. */
 export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
   const project = cfg.shared.project;
   const env = cfg.shared.environment;
@@ -81,10 +78,7 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
       }, { dependsOn: [alb.certificateValidation, alb.backendListener] })
     : undefined;
 
-  // Per-backend ECR repositories. Regional (one copy per region) and created
-  // unconditionally: the repo must exist before CI can push an image, and an
-  // image must exist before the ECS service can be enabled. Names are identical
-  // across regions on purpose (separate regional namespaces, no collision).
+  // Per-backend ECR repositories (one copy per region), created unconditionally.
   const ecr = new EcrComponent(`${namePrefix}-ecr`, {
     backends: cfg.shared.backends.map((b) => ({
       key: b.key,
@@ -106,17 +100,11 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
     tags: baseTags,
   });
 
-  // Active-passive compute layer (pilot light). Disabled unless service_enabled
-  // is set and the backend has a container image. PRIMARY (Virginia) runs warm
-  // at min_capacity; SECONDARY (Oregon) sits at passive_min_capacity and scales
-  // out on failover via CPU target-tracking.
+  // Active-passive compute (pilot light): PRIMARY runs warm, SECONDARY minimal.
   const isPrimary = regionKey === "virginia";
   if (cfg.shared.ecs.service_enabled) {
     for (const backend of cfg.shared.backends) {
-      // Effective image: an explicit full-URI override wins; otherwise derive the
-      // in-region ECR URI from the repo this stack created plus the configured
-      // tag, so each region pulls from its local registry. Skip the backend when
-      // neither is set (nothing to run yet).
+      // Image: explicit override wins, else derive the in-region ECR URI by tag.
       const repo = ecr.repositories.find((r) => r.key === backend.key);
       const image: pulumi.Input<string> | undefined = backend.image
         ? backend.image
@@ -130,9 +118,7 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
       if (!tg) {
         continue;
       }
-      // The target group is only associated with the ALB once its forwarding
-      // listener rule exists; ECS rejects a service whose target group has no
-      // associated load balancer. Depend on the rule to force that ordering.
+      // Depend on the listener rule: ECS rejects a target group not yet associated.
       const listenerRule = alb.listenerRules.find((r) => r.key === backend.key);
       new EcsServiceComponent(`${namePrefix}-${backend.key}-svc`, {
         clusterArn: ecs.cluster.arn,
@@ -174,8 +160,7 @@ export function buildRegional(cfg: RegionalStackConfig): ProgramOutputs {
     }
   }
 
-  // On the PRIMARY, replicate the RDS-managed master secret into every OTHER region
-  // (the passive region) so its ECS tasks can read DB credentials locally on failover.
+  // On the PRIMARY, replicate the master secret into every other region for failover.
   const secretReplicaRegions = isPrimary
     ? Object.values(cfg.shared.regions)
         .map((r) => r.aws_region)

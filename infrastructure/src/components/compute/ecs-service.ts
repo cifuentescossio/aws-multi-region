@@ -19,18 +19,11 @@ export interface EcsServiceArgs {
   containerPort: number;
   cpu: number;
   memory: number;
-  /**
-   * Desired/min running tasks. PRIMARY runs warm (e.g. 2); SECONDARY sits at
-   * the pilot-light minimum (e.g. 1) and scales out on failover.
-   */
+  /** Min running tasks: PRIMARY warm, SECONDARY at the pilot-light minimum. */
   minCapacity: number;
   maxCapacity: number;
   cpuTargetUtilization: number;
-  /**
-   * When set, an OpenTelemetry (ADOT) Collector is added as a sidecar and the app
-   * container gets the `OTEL_*` env vars pointing at it (http://localhost:4318).
-   * The collector forwards OTLP traces/metrics/logs to Grafana Cloud.
-   */
+  /** When set, adds an ADOT collector sidecar and OTEL_* env vars to the app. */
   observability?: {
     collectorImage: string;
     /** Grafana Cloud OTLP gateway base URL. */
@@ -47,11 +40,7 @@ export interface EcsServiceArgs {
   tags?: Record<string, string>;
 }
 
-/**
- * A Fargate service for one backend (v1 or v2), wired to its ALB target group,
- * with App Auto Scaling target-tracking on CPU. This is the active-passive
- * compute layer: scaling out is automatic when traffic (and CPU) arrives.
- */
+/** Fargate service for one backend, with CPU target-tracking autoscaling. */
 export class EcsServiceComponent extends pulumi.ComponentResource {
   public readonly taskDefinition: aws.ecs.TaskDefinition;
   public readonly service: aws.ecs.Service;
@@ -97,9 +86,8 @@ export class EcsServiceComponent extends pulumi.ComponentResource {
       // Start the collector before the app so early telemetry isn't dropped.
       appContainer.dependsOn = [{ containerName: "otel-collector", condition: "START" }];
 
-      // ADOT reads its full pipeline config from AOT_CONFIG_CONTENT. Receives OTLP
-      // on localhost and forwards to Grafana Cloud with Basic auth. The `\${env:..}`
-      // placeholders are resolved by the collector at runtime, not by JS here.
+      // ADOT reads its pipeline from AOT_CONFIG_CONTENT; `${env:..}` is resolved by
+      // the collector at runtime, not here.
       const collectorConfig = [
         "extensions:",
         "  health_check:",
@@ -199,9 +187,7 @@ export class EcsServiceComponent extends pulumi.ComponentResource {
             containerPort: args.containerPort,
           },
         ],
-        // Generous grace period: Spring Boot (v1) cold-starts with the OTEL Java
-        // agent attached, which can exceed 60s on Fargate before /actuator/health
-        // returns 200. Avoids the task being killed by the ALB check mid-boot.
+        // Generous grace period: Spring Boot + OTEL agent can exceed 60s to boot.
         healthCheckGracePeriodSeconds: 120,
         tags: { ...baseTags, Name: `${name}-svc` },
       },

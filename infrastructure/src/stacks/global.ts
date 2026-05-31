@@ -6,12 +6,8 @@ import { FailoverRecordsComponent } from "../components";
 import { ProgramOutputs } from "./types";
 
 /**
- * Builds the global stack: Route 53 failover ALIAS records for the shared API
- * endpoint, consuming both regional stacks via StackReference.
- *
- * Active-passive: Virginia is PRIMARY (health-checked), Oregon is the SECONDARY
- * DR standby. Route 53 fails over to Oregon only when the Virginia health check
- * fails.
+ * Builds the global stack: Route 53 failover records consuming both regionals.
+ * Active-passive: Virginia PRIMARY (health-checked), Oregon SECONDARY standby.
  */
 export function buildGlobal(cfg: GlobalStackConfig): ProgramOutputs {
   const project = cfg.shared.project;

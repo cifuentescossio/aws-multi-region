@@ -9,11 +9,7 @@ export interface ApiGatewayArgs {
   apiDomainName: string;
   certificateArn: pulumi.Input<string>;
   stageName: string;
-  /**
-   * Backend health path proxied by the public /health endpoint. Must be a real,
-   * ALB-routable backend path (e.g. /v1/actuator/health) since it travels
-   * API GW -> NLB -> ALB listener rules before reaching a container.
-   */
+  /** Backend health path proxied by the public /health endpoint (ALB-routable). */
   healthCheckPath: string;
   throttleBurstLimit: number;
   throttleRateLimit: number;
@@ -190,9 +186,7 @@ export class ApiGatewayComponent extends pulumi.ComponentResource {
       childOpts,
     );
 
-    // Public, unauthenticated health endpoint used by the Route 53 failover
-    // health check. It proxies the backend health path so the check reflects
-    // the real health of the region (API Gateway -> VPC Link -> NLB -> ALB).
+    // Public, unauthenticated health endpoint for the Route 53 failover check.
     const healthResource = new aws.apigateway.Resource(
       `${name}-health-resource`,
       {
@@ -236,10 +230,8 @@ export class ApiGatewayComponent extends pulumi.ComponentResource {
       {
         restApi: this.restApi.id,
         triggers: {
-          // Hash the actual integration config (URIs), not just resource IDs: an
-          // Integration's id is stable across uri changes, so keying only on .id
-          // means editing healthCheckPath / routing never triggers a new
-          // deployment and the stage silently serves a stale snapshot.
+          // Key on integration URIs, not just IDs: an Integration's id is stable
+          // across uri changes, so id-only would serve a stale stage on edits.
           redeploy: pulumi
             .all([
               rootAnyMethod.id,

@@ -11,10 +11,7 @@ export interface EcrBackend {
 export interface EcrArgs {
   /** One repository per backend (v1, v2, ...). */
   backends: EcrBackend[];
-  /**
-   * IMMUTABLE blocks overwriting an existing tag — recommended so a deployed
-   * `:latest`/`:<sha>` can't silently change under a running task.
-   */
+  /** IMMUTABLE blocks overwriting an existing tag (recommended). */
   imageTagMutability?: "MUTABLE" | "IMMUTABLE";
   /** Trigger a basic vulnerability scan on every push. */
   scanOnPush?: boolean;
@@ -24,15 +21,8 @@ export interface EcrArgs {
 }
 
 /**
- * Per-backend ECR repositories. ECR is a **regional** service, so each regional
- * stack owns its own copy of every repo: the image is pushed to BOTH regions and
- * each region's ECS task pulls from its local registry (no cross-region pull on
- * failover). The repo names are intentionally identical across regions — they
- * live in separate regional namespaces, so they don't collide between stacks.
- *
- * Created unconditionally (independent of `ecs.service_enabled`): the repo must
- * exist before an image can be pushed, and an image must exist before the service
- * can be enabled.
+ * Per-backend ECR repositories, one copy per region (each region pulls locally).
+ * Created unconditionally: the repo must exist before an image can be pushed.
  */
 export class EcrComponent extends pulumi.ComponentResource {
   /** Repositories keyed by backend key. */

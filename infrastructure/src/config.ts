@@ -13,27 +13,13 @@ export interface RegionSpec {
 
 export interface BackendSpec {
   key: string;
-  /**
-   * Image/container identity: the ECR repository name AND the ECS container name
-   * inside the task definition (e.g. "legacy-api", "new-api"). Distinct from `key`
-   * (v1/v2), which drives the public contract — path patterns and ALB target
-   * groups — and must stay v1/v2. Defaults to `key` when omitted.
-   */
+  /** ECR repo + ECS container name (e.g. "legacy-api"); defaults to `key`. */
   app_name: string;
   path_pattern: string;
   port: number;
-  /**
-   * Backend health endpoint for this service's ALB target group health check.
-   * Must match exactly what the container serves (the ALB probes the target
-   * directly, e.g. "/v1/actuator/health" for legacy-api, "/v2/actuator/health"
-   * for new-api). Falls back to the shared `health_check_path` when omitted.
-   */
+  /** ALB target-group health path; falls back to shared `health_check_path`. */
   health_check_path: string;
-  /**
-   * Full image URI override. Normally left unset: the image is derived from the
-   * in-region ECR repo this stack creates (`<repoUrl>:<image_tag>`) so each region
-   * pulls from its local registry. Set this only to pin an image from elsewhere.
-   */
+  /** Full image URI override; normally unset (image derived from in-region ECR). */
   image?: string;
   /** Tag to pull from the in-region ECR repo (e.g. "latest" or a git sha). */
   image_tag?: string;
@@ -65,10 +51,7 @@ export interface ObservabilityConfig {
   enabled: boolean;
   /** ADOT Collector image run as a sidecar in every backend task. */
   collector_image: string;
-  /**
-   * Grafana Cloud OTLP gateway base URL (no /v1/... suffix). The collector's
-   * otlphttp exporter appends /v1/{traces,metrics,logs}. Not a secret.
-   */
+  /** Grafana Cloud OTLP gateway base URL (no /v1 suffix). Not a secret. */
   otlp_endpoint: string;
   /** Soft CPU units reserved for the collector container (task total is unchanged). */
   collector_cpu: number;
@@ -110,13 +93,7 @@ export interface RegionalStackConfig {
   cert_sans: string[];
   enable_flow_logs: boolean;
   api_gateway: ApiGatewayConfig;
-  /**
-   * Grafana Cloud OTLP auth: the base64 of `instanceID:token` that goes into the
-   * collector's `Authorization: Basic <...>` header. Seeded as a Pulumi secret
-   * (`pulumi config set --secret aws-multi-region:grafana_otlp_auth <base64>`);
-   * Pulumi writes it to Secrets Manager. Undefined when not set (Secret is then
-   * created empty for you to populate out-of-band).
-   */
+  /** base64 of `instanceID:token` for the collector's Basic auth (Pulumi secret). */
   grafana_otlp_auth?: pulumi.Output<string>;
 }
 

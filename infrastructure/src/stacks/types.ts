@@ -1,11 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 
-/**
- * Union of every stack output. Each builder (regional/global) fills only the
- * fields relevant to its kind; `index.ts` re-exports them as flat top-level
- * stack outputs (kept flat because the global stack consumes the regional ones
- * by name via `StackReference.getOutput`).
- */
+/** Union of every stack output; each builder fills only its kind's fields. */
 export interface ProgramOutputs {
   vpc_id?: pulumi.Output<string>;
   vpc_cidr?: pulumi.Output<string>;

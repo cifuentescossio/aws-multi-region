@@ -37,13 +37,13 @@ backends:
     path_pattern: /v1/*
     port: 8080
     health_check_path: /v1/actuator/health
-    # image_tag: latest
+    image_tag: latest
   v2:
     app_name: new-api
     path_pattern: /v2/*
     port: 3000
     health_check_path: /v2/actuator/health
-    # image_tag: latest
+    image_tag: latest
 
 # ECR registries: one repository per backend, created in EVERY region (ECR is
 # regional). The same image is pushed to both regions so each region's ECS task
@@ -65,7 +65,7 @@ ecr:
 # SECONDARY region (Oregon) sits at passive_min_capacity and scales out on
 # failover when Route 53 sends it traffic and CPU rises past the target.
 ecs:
-  service_enabled: false
+  service_enabled: true
   cpu: 512
   memory: 1024
   cpu_target_utilization: 60

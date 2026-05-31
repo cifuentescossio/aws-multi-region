@@ -14,12 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * Custom application metrics. Each hit on GET /v1/metrics/ping increments a
- * counter that the OTEL Java agent exports (via the collector sidecar) to
- * Grafana Cloud. Mirrors GET /v2/metrics/ping in new-api.
- *
- * <p>When the agent is not attached, {@link GlobalOpenTelemetry} returns a no-op
- * instance, so the counter is harmless in local runs and tests.
+ * Custom metrics: GET /v1/metrics/ping increments an OTEL counter. Mirrors
+ * /v2/metrics/ping. No-op when the OTEL agent is absent (tests/local).
  */
 @RestController
 @RequestMapping("/v1")

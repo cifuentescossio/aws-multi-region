@@ -7,11 +7,7 @@ export interface FailoverTarget {
   failoverRole: "PRIMARY" | "SECONDARY";
   dnsName: pulumi.Input<string>;
   zoneId: pulumi.Input<string>;
-  /**
-   * Public FQDN that Route 53 health-checks (the regional API Gateway
-   * execute-api endpoint). When set, a Route 53 health check is created and
-   * attached to this record so failover is driven by the region's health.
-   */
+  /** Public FQDN Route 53 health-checks; when set, drives failover by region health. */
   healthCheckFqdn?: pulumi.Input<string>;
   /** Resource path (including stage) probed by the health check, e.g. /v1/health. */
   healthCheckPath?: pulumi.Input<string>;
@@ -24,13 +20,7 @@ export interface FailoverRecordsArgs {
   tags?: Record<string, string>;
 }
 
-/**
- * Active-passive (failover) routing for the global API endpoint.
- *
- * Route 53 sends 100% of traffic to the PRIMARY region (Virginia) while its
- * health check passes. If the primary becomes unhealthy, Route 53 fails the
- * record over to the SECONDARY region (Oregon).
- */
+/** Active-passive failover routing: Route 53 fails over PRIMARY -> SECONDARY. */
 export class FailoverRecordsComponent extends pulumi.ComponentResource {
   public readonly records: aws.route53.Record[] = [];
   public readonly healthChecks: aws.route53.HealthCheck[] = [];

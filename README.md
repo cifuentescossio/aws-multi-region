@@ -12,6 +12,8 @@
 
 > El diagrama resume visualmente la arquitectura descrita en este documento: el enrutamiento global con Route 53 (sección 1), la cadena de ingreso `API Gateway → VPC Link → NLB → ALB` (secciones 3 y 10.2), el split de rutas `/v1/*` y `/v2/*` sobre ECS (secciones 3 y 6) y la replicación de Aurora entre la región principal y la secundaria (sección 5). Las secciones siguientes detallan cada componente.
 
+> **Evidencia de despliegue:** las capturas de la infraestructura real desplegada en AWS están en [`aws-conf/README.md`](./aws-conf/README.md).
+
 ---
 
 ## 1. Configuración y Estrategia Multi-Región

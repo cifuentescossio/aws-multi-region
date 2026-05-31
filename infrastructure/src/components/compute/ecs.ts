@@ -5,18 +5,9 @@ export interface EcsClusterArgs {
   clusterName: string;
   logGroupName: string;
   logRetentionDays?: number;
-  /**
-   * When set, a Secrets Manager secret is created to hold the Grafana Cloud OTLP
-   * auth header and the task execution role is granted read access to it (so the
-   * collector sidecar can resolve it via container `secrets`). When omitted, no
-   * observability secret or policy is created.
-   */
+  /** When set, creates a Secrets Manager secret for the Grafana OTLP auth header. */
   observability?: {
-    /**
-     * Optional initial value (base64 of `instanceID:token`). When provided, it is
-     * written as a SecretVersion; when undefined the Secret is created empty for
-     * you to populate out-of-band.
-     */
+    /** Optional initial value (base64 of `instanceID:token`); empty if omitted. */
     grafanaAuth?: pulumi.Input<string>;
   };
   tags?: Record<string, string>;
@@ -110,21 +101,16 @@ export class EcsClusterComponent extends pulumi.ComponentResource {
       childOpts,
     );
 
-    // Observability: hold the Grafana Cloud OTLP auth header in Secrets Manager
-    // so it is never baked into the task definition or the image. The execution
-    // role (not the task role) resolves container `secrets` at launch time, so it
-    // gets read access on this one ARN.
+    // Keep the Grafana OTLP auth header in Secrets Manager, never in the task def.
+    // The execution role resolves container `secrets`, so it gets read access.
     if (args.observability) {
       this.grafanaSecret = new aws.secretsmanager.Secret(
         `${name}-grafana-otlp`,
         {
           name: `${args.clusterName}-grafana-otlp-auth`,
           description: "Grafana Cloud OTLP auth header (base64 of instanceID:token)",
-          // Delete immediately instead of scheduling for deletion: Secrets Manager
-          // otherwise reserves the name during the recovery window, so a later
-          // `pulumi up` fails to recreate it ("scheduled for deletion"). The value
-          // is re-seeded from Pulumi config via the SecretVersion below, so there
-          // is nothing worth recovering.
+          // Delete immediately: the name is otherwise reserved during the recovery
+          // window, blocking recreation. The value is re-seeded below anyway.
           recoveryWindowInDays: 0,
           tags: baseTags,
         },

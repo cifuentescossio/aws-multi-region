@@ -91,4 +91,4 @@ new-api/
 See [`CLAUDE.md`](CLAUDE.md) for the full list. Highlights: all routes under `/v2`,
 errors as structured JSON, async errors via `next(error)` (never respond from a route's
 `catch`), strict TypeScript + ESM, supertest against `createHttpServer()` (no real port),
-and minimal dependencies
+and minimal dependencies.

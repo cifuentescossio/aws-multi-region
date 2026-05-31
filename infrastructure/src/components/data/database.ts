@@ -12,12 +12,7 @@ export interface DatabaseArgs {
   /** AWS region this stack deploys to — the home region of the master secret. */
   awsRegion: string;
   isPrimary: boolean;
-  /**
-   * Regions to replicate the master secret into (e.g. ["us-west-2"]). Only honoured
-   * on the PRIMARY: this stack owns the credentials, and Secrets Manager replicates a
-   * read-only copy to each region here so the passive region's ECS tasks can read DB
-   * credentials locally on failover. Empty/omitted disables replication.
-   */
+  /** Regions to replicate the master secret into (PRIMARY only, for failover). */
   secretReplicaRegions?: string[];
   databaseName?: string;
   masterUsername?: string;
@@ -60,12 +55,8 @@ export class DatabaseComponent extends pulumi.ComponentResource {
       childOpts,
     );
 
-    // A cross-region encrypted Aurora replica MUST be given an explicit KMS key in
-    // its OWN region: the primary's key (in the primary region) is not usable here,
-    // and AWS will not fall back to the regional default for a replica. We mint a
-    // region-local CMK for the SECONDARY (with rotation) instead of relying on the
-    // AWS-managed `aws/rds` key, which is created lazily and may not exist yet in a
-    // brand-new passive region. The PRIMARY keeps using the region default.
+    // A cross-region encrypted replica needs a region-local CMK; the primary's key
+    // isn't usable here. The PRIMARY keeps using the region default.
     let secondaryKmsKeyArn: pulumi.Input<string> | undefined;
     if (!args.isPrimary) {
       const dbKmsKey = new aws.kms.Key(
@@ -105,11 +96,8 @@ export class DatabaseComponent extends pulumi.ComponentResource {
       );
     }
 
-    // Aurora Global databases do NOT support RDS-managed master passwords
-    // (`manageMasterUserPassword`). Only the PRIMARY owns credentials, so we
-    // generate the password ourselves and store it in a Secrets Manager secret we
-    // control, replicated cross-region natively (see below) for failover. The
-    // secondary is a read replica created without master credentials.
+    // Aurora Global doesn't support RDS-managed master passwords, so the PRIMARY
+    // self-manages credentials in a cross-region-replicated secret.
     const replicaRegions = args.isPrimary ? args.secretReplicaRegions ?? [] : [];
     let masterPassword: pulumi.Output<string> | undefined;
     let masterSecret: aws.secretsmanager.Secret | undefined;
@@ -128,9 +116,7 @@ export class DatabaseComponent extends pulumi.ComponentResource {
       );
       masterPassword = password.result;
 
-      // Self-managed secret with native cross-region replication. Each replica keeps
-      // the primary's name + random suffix, so the replica ARN is the primary ARN
-      // with the region swapped (derived in masterSecretReplicaArns below).
+      // Self-managed secret, natively replicated cross-region for failover.
       masterSecret = new aws.secretsmanager.Secret(
         `${name}-master-secret`,
         {
@@ -167,8 +153,7 @@ export class DatabaseComponent extends pulumi.ComponentResource {
         dbSubnetGroupName: this.subnetGroup.name,
         vpcSecurityGroupIds: [args.databaseSecurityGroupId],
         storageEncrypted: true,
-        // Secondary only: region-local CMK is required for the encrypted replica.
-        // Primary leaves this undefined and uses the region's default RDS key.
+        // Secondary uses its region-local CMK; primary uses the region default.
         kmsKeyId: secondaryKmsKeyArn,
         backupRetentionPeriod,
         copyTagsToSnapshot: true,
@@ -202,8 +187,7 @@ export class DatabaseComponent extends pulumi.ComponentResource {
 
     this.masterSecretArn = pulumi.output(masterSecret?.arn);
 
-    // Derive each replica ARN from the primary ARN by swapping the region: a
-    // replicated secret keeps the primary's name + random suffix.
+    // A replicated secret keeps the primary's name, so swap the region in the ARN.
     if (masterSecret && replicaRegions.length > 0) {
       this.masterSecretReplicaArns = masterSecret.arn.apply((arn) =>
         Object.fromEntries(
